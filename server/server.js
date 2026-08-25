@@ -12,6 +12,8 @@ import requirementRoutes from './routes/requirements.js';
 import quotationRoutes from './routes/quotations.js';
 import purchaseRoutes from './routes/purchases.js';
 import paymentRoutes from './routes/payments.js';
+import reminderRoutes from './routes/reminders.js';
+import { startReminderScheduler } from './services/reminderScheduler.js';
 
 dotenv.config();
 
@@ -51,6 +53,7 @@ app.use('/api/requirements', requirementRoutes);
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/reminders', reminderRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', async (req, res) => {
@@ -72,7 +75,9 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Start Server
+// Start Server & 24-hour Reminder Scheduler
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  startReminderScheduler();
 });
+
