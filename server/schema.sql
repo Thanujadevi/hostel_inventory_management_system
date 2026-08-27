@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS tbl_Supplier (
   txt_Bank_Name VARCHAR(100),
   txt_Account_No VARCHAR(50),
   txt_IFSC VARCHAR(20),
-  dbl_Rating DECIMAL(3,2) DEFAULT 4.50,
+  dbl_Rating DECIMAL(3,2) DEFAULT 0.00,
   txt_Password VARCHAR(255) DEFAULT 'supplier123',
   txt_Active CHAR(1) DEFAULT 'Y',
   txt_Profile_Completed CHAR(1) DEFAULT 'Y',
@@ -82,8 +82,8 @@ CREATE TABLE IF NOT EXISTS tbl_Supplier (
 INSERT IGNORE INTO tbl_Supplier
 (int_Supplier_Id, txt_Supplier_Code, txt_Supplier_Name, txt_Contact_Person, txt_Email, txt_Phone, txt_GSTIN, txt_Address, txt_City, txt_State, txt_Pincode, txt_Country, dbl_Rating, txt_Password, txt_Active, txt_Profile_Completed, dte_Created_Date, txt_Created_By)
 VALUES
-(1, 'SUP-001', 'Apex Traders', 'Ramesh Patel', 'apex@traders.com', '9988776655', '33AAACA1234A1Z5', '12 Industrial Area', 'Chennai', 'Tamil Nadu', '600001', 'India', 4.80, 'supplier123', 'Y', 'Y', CURDATE(), 'System'),
-(2, 'SUP-002', 'Global Supplies', 'Anita Roy', 'global@supplies.com', '9876501234', '33BBBCA5678B1Z2', '45 Commercial Complex', 'Coimbatore', 'Tamil Nadu', '641001', 'India', 4.50, 'supplier123', 'Y', 'Y', CURDATE(), 'System');
+(1, 'SUP-001', 'Apex Traders', 'Ramesh Patel', 'apex@traders.com', '9988776655', '33AAACA1234A1Z5', '12 Industrial Area', 'Chennai', 'Tamil Nadu', '600001', 'India', 0.00, 'supplier123', 'Y', 'Y', CURDATE(), 'System'),
+(2, 'SUP-002', 'Global Supplies', 'Anita Roy', 'global@supplies.com', '9876501234', '33BBBCA5678B1Z2', '45 Commercial Complex', 'Coimbatore', 'Tamil Nadu', '641001', 'India', 0.00, 'supplier123', 'Y', 'Y', CURDATE(), 'System');
 
 
 -- 4. Category Table

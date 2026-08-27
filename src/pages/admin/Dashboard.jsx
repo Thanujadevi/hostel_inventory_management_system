@@ -186,10 +186,10 @@ export const AdminDashboard = ({ setCurrentTab }) => {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '4px' }}>
                 <span className={`badge ${windowActive ? 'badge-approved' : 'badge-open'}`} style={{ fontWeight: 700 }}>
-                  {windowActive ? 'STORE REQUIREMENT WINDOW OPEN' : 'STORE REQUIREMENT WINDOW CLOSED'}
+                  {windowActive ? 'REQUEST WINDOW OPEN' : 'REQUEST WINDOW CLOSED'}
                 </span>
                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                  Target Period: {requirementPeriod?.txt_Month || 'August'} {requirementPeriod?.int_Year || 2026}
+                  Month: {requirementPeriod?.txt_Month || 'August'} {requirementPeriod?.int_Year || 2026}
                 </span>
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
@@ -215,7 +215,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
               title="Triggers deadline check & sends reminder emails to all active hostel store in-charges"
             >
               {loadingReminders ? <RefreshCw className="spin" size={14} /> : <Send size={14} />}
-              {loadingReminders ? 'Sending Emails...' : 'Send Reminders Now'}
+              {loadingReminders ? 'Sending Emails...' : 'Send Reminders'}
             </button>
 
             {/* Email Reminders Button */}
@@ -224,7 +224,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
               onClick={handleOpenReminderModal}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <Mail size={14} /> Email Reminders
+              <Mail size={14} /> Reminder Settings
             </button>
 
             {windowActive ? (
@@ -238,7 +238,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
             )}
 
             <button className="btn btn-secondary btn-sm" onClick={() => setCurrentTab('requirements')}>
-              <Settings size={14} /> Catalogue
+              <Settings size={14} /> Item List
             </button>
           </div>
         </div>
@@ -247,36 +247,36 @@ export const AdminDashboard = ({ setCurrentTab }) => {
       {/* KPI Cards Grid */}
       <div className="kpi-grid">
         <Card
-          title="Pending Requirements"
+          title="Pending Requests"
           value={pendingRequests.length}
           icon={FileText}
           iconBg="var(--color-danger-bg)"
           iconColor="var(--color-danger-text)"
-          subtitle="Store requests awaiting review"
+          subtitle="Requests waiting for approval"
         />
         <Card
-          title="Active Quotations"
+          title="Open Price Quotes"
           value={openQuotations.length}
           icon={GitCompare}
           iconBg="var(--color-primary-light)"
           iconColor="var(--color-primary)"
-          subtitle="Open for supplier bidding"
+          subtitle="Waiting for supplier quotes"
         />
         <Card
-          title="Active Purchase Orders"
+          title="Active Orders"
           value={activePOs.length}
           icon={ShoppingBag}
           iconBg="var(--color-success-bg)"
           iconColor="var(--color-success-text)"
-          subtitle="POs in delivery pipeline"
+          subtitle="Orders currently in delivery"
         />
         <Card
-          title="Low Stock Warnings"
+          title="Low Stock Alerts"
           value={lowStockItems.length}
           icon={AlertTriangle}
           iconBg="var(--color-warning-bg)"
           iconColor="var(--color-warning-text)"
-          subtitle="Items below threshold (15)"
+          subtitle="Items running low (under 15)"
         />
       </div>
 
@@ -288,9 +288,9 @@ export const AdminDashboard = ({ setCurrentTab }) => {
           <div className="card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Pending Store Requirements</h3>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Pending Hostel Requests</h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                  Requirements raised by hostel stores waiting for admin approval
+                  Requests submitted by hostels waiting for your approval
                 </p>
               </div>
               <button 
@@ -303,7 +303,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
 
             {pendingRequests.length === 0 ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                No pending requirements at this time.
+                No pending requests at this time.
               </div>
             ) : (
               <div className="table-container">
@@ -331,7 +331,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
                             className="btn btn-primary btn-sm"
                             onClick={() => setCurrentTab('requirements:requests')}
                           >
-                            Review & Forward
+                            Review Request
                           </button>
                         </td>
                       </tr>
@@ -346,9 +346,9 @@ export const AdminDashboard = ({ setCurrentTab }) => {
           <div className="card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Quotations Pending Comparison</h3>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Quotes Ready to Compare</h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                  Supplier bids received and ready for side-by-side evaluation
+                  Supplier quotes received and ready for comparison
                 </p>
               </div>
               <button 
@@ -361,7 +361,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
 
             {openQuotations.length === 0 ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                No requirements currently open for quotation.
+                No quotes currently open for evaluation.
               </div>
             ) : (
               <div className="table-container">
@@ -387,7 +387,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
                             className="btn btn-success btn-sm"
                             onClick={() => setCurrentTab('quotations')}
                           >
-                            Compare Bids & Award PO
+                            Compare Quotes & Order
                           </button>
                         </td>
                       </tr>
@@ -403,12 +403,12 @@ export const AdminDashboard = ({ setCurrentTab }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Quick Metrics Card */}
           <div className="card">
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px' }}>Platform Entities</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px' }}>System Summary</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Building2 size={18} color="var(--color-primary)" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Active Hostel Stores</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Hostel Stores</span>
                 </div>
                 <span style={{ fontWeight: 700, fontSize: '1rem' }}>{stores.length}</span>
               </div>
@@ -416,7 +416,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Truck size={18} color="var(--color-purple-text)" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Registered Suppliers</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Suppliers</span>
                 </div>
                 <span style={{ fontWeight: 700, fontSize: '1rem' }}>{suppliers.length}</span>
               </div>
@@ -424,7 +424,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Package size={18} color="var(--color-success-text)" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Catalog Item Master</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Master Item List</span>
                 </div>
                 <span style={{ fontWeight: 700, fontSize: '1rem' }}>{items.length}</span>
               </div>
@@ -434,7 +434,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
           {/* Low Stock Alerts */}
           <div className="card">
             <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-warning-text)' }}>
-              <AlertTriangle size={18} /> Low Stock Watchlist
+              <AlertTriangle size={18} /> Items Running Low
             </h3>
             {lowStockItems.length === 0 ? (
               <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>All items are sufficiently stocked.</p>
@@ -467,7 +467,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
       <Modal
         isOpen={isReminderModalOpen}
         onClose={() => setIsReminderModalOpen(false)}
-        title="⏰ Automated 24-Hour Email Reminder Engine"
+        title="⏰ Email Reminder Settings"
         maxWidth="750px"
       >
         {notice && (

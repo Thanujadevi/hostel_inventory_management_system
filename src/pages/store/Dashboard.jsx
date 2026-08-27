@@ -14,6 +14,7 @@ export const StoreDashboard = ({ setCurrentTab }) => {
   const storePOs = storeId ? purchases.filter(p => p.int_Store_Id === storeId) : [];
 
   const storeItems = getStoreItems(storeId);
+  const lowStockItems = storeItems.filter(item => Number(item.int_quantity_in_hand || 0) < Number(item.int_min_stock_level || 15));
   const pendingReqs = storeReqs.filter(r => r.txt_Status === 'Pending');
   const windowActive = isRequirementWindowActive();
 
@@ -23,13 +24,6 @@ export const StoreDashboard = ({ setCurrentTab }) => {
         <div>
           <h1>{currentStore?.name || 'Hostel Store'} Dashboard</h1>
         </div>
-        <button 
-          className={`btn ${windowActive ? 'btn-primary' : 'btn-secondary'}`} 
-          onClick={() => setCurrentTab('raise')}
-        >
-          {windowActive ? <PlusCircle size={16} /> : <Lock size={16} />}
-          {windowActive ? 'Raise New Requirement' : 'Requirement Window Status'}
-        </button>
       </div>
 
       {/* Requirement Window Banner */}

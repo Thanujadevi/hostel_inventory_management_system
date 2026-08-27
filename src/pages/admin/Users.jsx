@@ -7,34 +7,38 @@ import { Users as UsersIcon, UserCheck, Shield, Building2, Truck, Search, Mail, 
 import { matchesWordPrefix } from '../../utils/searchUtils';
 
 export const AdminUsers = () => {
-  const { stores, suppliers } = useData();
+  const { stores, suppliers, admins } = useData();
 
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Static/dynamic Admin accounts
-  const adminUsers = [
-    {
-      id: 'ADM001',
-      name: 'Chief Warden / Admin',
-      email: '24104063@nec.edu.in',
-      phone: '+91 98765 43210',
-      role: 'Chief Warden / Admin',
-      type: 'admin',
-      associated: 'Central Administration',
-      status: 'Active'
-    },
-    {
-      id: 'ADM002',
-      name: 'Deputy Warden',
-      email: 'deputywarden@nec.edu.in',
-      phone: '+91 98765 43211',
-      role: 'Deputy Warden',
-      type: 'admin',
-      associated: 'Hostel Administration',
-      status: 'Active'
+  // Map Admin Accounts dynamically from Database
+  const adminUsers = useMemo(() => {
+    if (admins && admins.length > 0) {
+      return admins.map(a => ({
+        id: a.txt_Admin_Code || `ADM-${a.int_Admin_Id}`,
+        name: a.txt_Admin_Name || 'Admin User',
+        email: a.txt_Email || 'admin@nec.edu.in',
+        phone: 'N/A',
+        role: a.txt_Role || 'System Administrator',
+        type: 'admin',
+        associated: 'Central Administration',
+        status: a.txt_Active === 'Y' ? 'Active' : 'Inactive'
+      }));
     }
-  ];
+    return [
+      {
+        id: 'ADM001',
+        name: 'Chief Warden / Admin',
+        email: '24104063@nec.edu.in',
+        phone: 'N/A',
+        role: 'Chief Warden / Admin',
+        type: 'admin',
+        associated: 'Central Administration',
+        status: 'Active'
+      }
+    ];
+  }, [admins]);
 
   // Map Stores to Store Manager Users
   const storeUsers = useMemo(() => {
@@ -140,11 +144,19 @@ export const AdminUsers = () => {
       )
     },
     {
-      header: 'Contact Number',
+      header: 'Auth / Mobile',
       accessor: 'phone',
       render: (row) => (
         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Phone size={13} color="var(--color-text-muted)" /> {row.phone}
+          {row.type === 'supplier' ? (
+            <>
+              <Phone size={13} color="var(--color-text-muted)" /> {row.phone}
+            </>
+          ) : (
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+              Username & Password
+            </span>
+          )}
         </div>
       )
     },

@@ -89,7 +89,7 @@ export const Table = ({
       {/* Always Render Pagination Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
         <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-          Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({pageSize} items per page)
+          Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
         </div>
 
         <div style={{ display: 'flex', gap: '6px' }}>

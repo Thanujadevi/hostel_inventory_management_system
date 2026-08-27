@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { CheckSquare, PackageCheck, AlertCircle, ArrowRight } from 'lucide-react';
+import { CheckSquare, PackageCheck, AlertCircle, ArrowRight, Star } from 'lucide-react';
 
 export const StoreStockUpdate = ({ setCurrentTab }) => {
   const { currentStore } = useAuth();
@@ -14,6 +14,8 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
 
   const [selectedPOId, setSelectedPOId] = useState(storePOs[0]?.int_Purchase_Id || '');
   const [receiptRemarks, setReceiptRemarks] = useState('');
+  const [supplierRating, setSupplierRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
 
   const storeItems = getStoreItems(storeId);
   const currentPO = storePOs.find(p => p.int_Purchase_Id === Number(selectedPOId));
@@ -46,6 +48,9 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
 
     try {
       await mockApi.receiveStoreDelivery(currentPO.int_Purchase_Id, finalMap, receiptRemarks || 'Physical stock verified by store in-charge');
+      if (currentPO.supplier_name && supplierRating > 0 && mockApi.rateSupplier) {
+        await mockApi.rateSupplier(currentPO.supplier_name, supplierRating);
+      }
       showToast(`Stock successfully verified & updated in ${currentStore?.name || 'Store'} inventory!`, 'success');
       refreshAll();
       setCurrentTab('inventory');
@@ -175,6 +180,51 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
                 onChange={e => setReceiptRemarks(e.target.value)}
               />
             </div>
+
+            {currentPO.txt_Status !== 'Delivered' && (
+              <div style={{ 
+                marginTop: '16px', 
+                padding: '14px 18px', 
+                backgroundColor: 'var(--color-surface-hover)', 
+                borderRadius: '8px', 
+                border: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div>
+                  <label className="form-label" style={{ fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
+                    Rate Supplier Performance ({currentPO.supplier_name})
+                  </label>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                    How satisfied are you with product quality and delivery promptness?
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setSupplierRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                    >
+                      <Star
+                        size={22}
+                        fill={(hoverRating || supplierRating) >= star ? '#F59E0B' : 'transparent'}
+                        color={(hoverRating || supplierRating) >= star ? '#F59E0B' : 'var(--color-text-muted)'}
+                      />
+                    </button>
+                  ))}
+                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text-primary)', marginLeft: '6px' }}>
+                    {supplierRating} / 5 Stars
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Confirm Button */}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { Modal } from '../../components/common/Modal';
 import { Plus, Trash2, Send, Calculator, ShoppingBag, Lock, Unlock, Clock, AlertTriangle, Search, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generateRequestCode } from '../../utils/codeGenerator';
@@ -165,13 +166,15 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
         txt_Month: month,
         int_Year: year,
         dec_Budget: calculatedBudget,
-        txt_Remarks: remarks
+        txt_Remarks: remarks,
+        txt_Status: 'Pending'
       };
 
-      const newReq = await mockApi.createRequirement(reqData, reqRows);
-      showToast(`Requirement ${newReq.txt_Request_No} submitted to Admin!`, "success");
+      const newReq = await apiService.saveRequest(reqData, reqRows);
+      const reqNo = newReq?.txt_Request_No || newReq?.txt_Request_Code || 'REQ';
+      showToast(`Requirement #${reqNo} submitted to Admin!`, "success");
       resetForm();
-      refreshAll();
+      await refreshAll();
       setCurrentTab('history');
     } catch (err) {
       showToast("Error submitting requirement", "error");
@@ -726,7 +729,7 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
               return (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', marginBottom: '12px' }}>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                    Page <strong>{modalPage}</strong> of <strong>{totalPages}</strong> (5 items per page)
+                    Page <strong>{modalPage}</strong> of <strong>{totalPages}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button

@@ -3,7 +3,7 @@ import { useData } from '../../context/DataContext';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { Truck, Plus, Edit, Trash2, Star } from 'lucide-react';
+import { Truck, Edit, Trash2, Star } from 'lucide-react';
 import { generateSupplierCode } from '../../utils/codeGenerator';
 
 export const AdminSuppliers = () => {
@@ -21,33 +21,14 @@ export const AdminSuppliers = () => {
     txt_City: '',
     txt_State: '',
     txt_Pincode: '',
-    dbl_Rating: 4.5,
+    dbl_Rating: 0,
     txt_GST_Number: '',
     txt_Active: 'Y'
   });
 
-  const openAddModal = () => {
-    setEditingSupplier(null);
-    setFormData({
-      txt_Supplier_Code: generateSupplierCode(suppliers),
-      txt_Store_Name: '',
-      txt_Owner_Name: '',
-      txt_Email: '',
-      txt_Phone: '',
-      txt_Address1: '',
-      txt_City: 'New Delhi',
-      txt_State: 'Delhi',
-      txt_Pincode: '110001',
-      dbl_Rating: 4.5,
-      txt_GST_Number: '07AAAAA1234A1Z5',
-      txt_Active: 'Y'
-    });
-    setIsModalOpen(true);
-  };
-
   const openEditModal = (supplier) => {
     setEditingSupplier(supplier);
-    setFormData({ ...supplier });
+    setFormData({ ...supplier, dbl_Rating: supplier.dbl_Rating || 0 });
     setIsModalOpen(true);
   };
 
@@ -91,11 +72,30 @@ export const AdminSuppliers = () => {
       </div>
     )},
     { header: 'City & State', accessor: 'txt_City', render: row => `${row.txt_City}, ${row.txt_State}` },
-    { header: 'Rating', accessor: 'dbl_Rating', render: row => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-warning-text)', fontWeight: 600 }}>
-        <Star size={14} fill="var(--color-warning-text)" /> {row.dbl_Rating}
-      </div>
-    )},
+    { header: 'Rating', accessor: 'dbl_Rating', render: row => {
+      const r = Number(row.dbl_Rating || 0);
+      if (r <= 0) {
+        return (
+          <span style={{ 
+            fontSize: '0.75rem', 
+            color: 'var(--color-text-muted)', 
+            fontStyle: 'italic', 
+            background: 'var(--color-surface-hover)', 
+            padding: '3px 8px', 
+            borderRadius: '4px', 
+            border: '1px solid var(--color-border)' 
+          }}>
+            Unrated
+          </span>
+        );
+      }
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-warning-text)', fontWeight: 700 }}>
+          <Star size={14} fill="var(--color-warning-text)" /> {r.toFixed(1)}
+          {row.int_Rating_Count ? <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', fontWeight: 400 }}>({row.int_Rating_Count})</span> : null}
+        </div>
+      );
+    }},
     { header: 'Status', accessor: 'txt_Active', render: row => <StatusBadge status={row.txt_Active === 'Y' ? 'Active' : 'Inactive'} /> },
     { header: 'Actions', render: row => (
       <div style={{ display: 'flex', gap: '8px' }}>
@@ -111,9 +111,6 @@ export const AdminSuppliers = () => {
         <div>
           <h1>Supplier Directory</h1>
         </div>
-        <button className="btn btn-primary" onClick={openAddModal}>
-          <Plus size={16} /> Add New Supplier
-        </button>
       </div>
 
       <Table columns={columns} data={suppliers} searchPlaceholder="Search by business name, owner, GST number..." />
@@ -121,7 +118,7 @@ export const AdminSuppliers = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingSupplier ? `Edit Supplier: ${editingSupplier.txt_Store_Name}` : "Register New Supplier"}
+        title={`Edit Supplier: ${editingSupplier?.txt_Store_Name || ''}`}
       >
         <form onSubmit={handleSubmit}>
           <div className="form-row">
@@ -229,14 +226,15 @@ export const AdminSuppliers = () => {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Rating Score (1 - 5)</label>
+              <label className="form-label">Rating (0 = Unrated)</label>
               <input
                 type="number"
                 step="0.1"
-                min="1"
+                min="0"
                 max="5"
                 className="form-control"
-                value={formData.dbl_Rating}
+                placeholder="0 (Unrated)"
+                value={formData.dbl_Rating || 0}
                 onChange={e => setFormData({ ...formData, dbl_Rating: Number(e.target.value) })}
               />
             </div>

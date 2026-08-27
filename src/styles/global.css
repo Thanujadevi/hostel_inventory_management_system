@@ -621,17 +621,17 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .login-college-tag {
-  display: inline-block;
-  font-size: 0.72rem;
+  display: block;
+  font-size: 1.05rem;
   font-weight: 800;
-  color: var(--color-primary);
+  color: #000000;
   text-transform: uppercase;
-  letter-spacing: 1.2px;
-  background: var(--color-primary-light);
-  padding: 3px 12px;
-  border-radius: 20px;
+  letter-spacing: 0.8px;
   margin-bottom: 6px;
-  border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="dark"] .login-college-tag {
+  color: #ffffff;
 }
 
 .login-input-wrapper {
