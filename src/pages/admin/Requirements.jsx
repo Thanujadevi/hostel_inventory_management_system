@@ -367,10 +367,14 @@ export const AdminRequirements = ({ currentTab }) => {
   return (
     <div>
       {/* Top Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ marginBottom: '20px' }}>
         <div>
-          <h1>Store Requirement & Demand Consolidation</h1>
-          <p>Review hostel store requests, accept or reject demands, and aggregate product totals for procurement</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: 0, letterSpacing: '-0.3px' }}>
+            Store Requirements & Demand Consolidation
+          </h1>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+            Review hostel store requests, aggregate product demands, and authorize catalogue items for active procurement periods.
+          </p>
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -401,19 +405,19 @@ export const AdminRequirements = ({ currentTab }) => {
         style={{ 
           background: 'var(--color-surface)',
           border: '1px solid var(--color-border)',
-          borderLeft: `5px solid ${windowActive ? 'var(--color-success)' : 'var(--color-danger)'}`,
+          borderLeft: `5px solid ${windowActive ? 'var(--color-success)' : 'var(--color-primary)'}`,
           borderRadius: 'var(--border-radius)',
-          padding: '14px 20px',
+          padding: '16px 20px',
           marginBottom: '24px',
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px',
+          gap: '16px',
           boxShadow: 'var(--shadow-sm)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <StatusBadge status={windowActive ? 'Window Open' : 'Window Closed'} />
           <div>
             <strong style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
@@ -425,17 +429,17 @@ export const AdminRequirements = ({ currentTab }) => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', fontSize: '0.85rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', fontSize: '0.85rem', flexWrap: 'wrap' }}>
           <div>
             <span style={{ color: 'var(--color-text-secondary)' }}>Deadline: </span>
-            <strong style={{ color: windowActive ? 'var(--color-primary)' : 'var(--color-danger-text)' }}>
+            <strong style={{ color: windowActive ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>
               {requirementPeriod?.dte_Deadline ? new Date(requirementPeriod.dte_Deadline).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
             </strong>
           </div>
 
           <div style={{ borderLeft: '1px solid var(--color-border)', paddingLeft: '20px' }}>
             <span style={{ color: 'var(--color-text-secondary)' }}>Catalogue Authorized: </span>
-            <strong>{activeValidCount} / {items.length} Items</strong>
+            <strong style={{ color: 'var(--color-primary)' }}>{activeValidCount} / {items.length} Items</strong>
           </div>
         </div>
       </div>
@@ -782,30 +786,42 @@ export const AdminRequirements = ({ currentTab }) => {
                   ) : (
                     filteredCatalogItems.slice((catPage - 1) * 5, catPage * 5).map(item => {
                       const isChecked = (periodForm.arr_Active_Item_Ids || []).includes(item.int_Item_Id);
+                      const stockQty = (typeof item.int_quantity_in_hand === 'number') ? item.int_quantity_in_hand : (item.int_Stock || 0);
+                      const isLowStock = stockQty < 15;
+                      const catName = item.txt_Category && item.txt_Category !== '--' ? item.txt_Category : 'General';
                       return (
-                        <tr key={item.int_Item_Id} style={{ backgroundColor: isChecked ? 'var(--color-primary-light)' : 'transparent' }}>
+                        <tr key={item.int_Item_Id} style={{ backgroundColor: isChecked ? 'rgba(2, 132, 199, 0.04)' : 'transparent' }}>
                           <td>
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => handleToggleItemSelection(item.int_Item_Id)}
-                              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                              style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
                             />
                           </td>
-                          <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{item.txt_Item_Code}</td>
-                          <td style={{ fontWeight: 600 }}>{item.txt_Item_Name}</td>
+                          <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{item.txt_Item_Code}</td>
+                          <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.txt_Item_Name}</td>
                           <td>
                             <span className="category-badge">
-                              {item.txt_Category}
+                              {catName}
                             </span>
                           </td>
-                          <td>{item.txt_Unit}</td>
+                          <td style={{ color: 'var(--color-text-secondary)' }}>{item.txt_Unit || 'Pcs'}</td>
                           <td>
-                            <strong style={{ color: (item.int_quantity_in_hand || 0) < 15 ? 'var(--color-danger-text)' : 'inherit' }}>
-                              {item.int_quantity_in_hand} {item.txt_Unit}
-                            </strong>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              backgroundColor: isLowStock ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
+                              color: isLowStock ? 'var(--color-danger-text)' : 'var(--color-success-text)'
+                            }}>
+                              {stockQty} {item.txt_Unit || 'Pcs'}
+                            </span>
                           </td>
-                          <td>₹{Number(item.dec_Last_Purchase_Price || 0).toFixed(2)}</td>
+                          <td style={{ fontWeight: 600 }}>₹{Number(item.dec_Last_Purchase_Price || 0).toFixed(2)}</td>
                         </tr>
                       );
                     })
@@ -815,47 +831,45 @@ export const AdminRequirements = ({ currentTab }) => {
             </div>
 
             {/* Catalogue Pagination Bar */}
-            {Math.ceil(filteredCatalogItems.length / 5) > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                  Page <strong>{catPage}</strong> of <strong>{Math.ceil(filteredCatalogItems.length / 5)}</strong> (5 items per page)
-                </div>
-
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    disabled={catPage === 1}
-                    onClick={() => setCatPage(prev => Math.max(prev - 1, 1))}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: catPage === 1 ? 0.5 : 1 }}
-                  >
-                    <ChevronLeft size={14} /> Previous
-                  </button>
-
-                  {Array.from({ length: Math.ceil(filteredCatalogItems.length / 5) }, (_, i) => i + 1).map(pageNum => (
-                    <button
-                      key={pageNum}
-                      type="button"
-                      className={`btn btn-sm ${catPage === pageNum ? 'btn-primary' : 'btn-secondary'}`}
-                      onClick={() => setCatPage(pageNum)}
-                      style={{ minWidth: '32px', padding: '4px 8px' }}
-                    >
-                      {pageNum}
-                    </button>
-                  ))}
-
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    disabled={catPage === Math.ceil(filteredCatalogItems.length / 5)}
-                    onClick={() => setCatPage(prev => Math.min(prev + 1, Math.ceil(filteredCatalogItems.length / 5)))}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: catPage === Math.ceil(filteredCatalogItems.length / 5) ? 0.5 : 1 }}
-                  >
-                    Next <ChevronRight size={14} />
-                  </button>
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                Page <strong>{catPage}</strong> of <strong>{Math.ceil(filteredCatalogItems.length / 5) || 1}</strong> (5 items per page)
               </div>
-            )}
+
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={catPage === 1}
+                  onClick={() => setCatPage(prev => Math.max(prev - 1, 1))}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: catPage === 1 ? 0.5 : 1 }}
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+
+                {Array.from({ length: Math.ceil(filteredCatalogItems.length / 5) || 1 }, (_, i) => i + 1).map(pageNum => (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    className={`btn btn-sm ${catPage === pageNum ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setCatPage(pageNum)}
+                    style={{ minWidth: '32px', padding: '4px 8px' }}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={catPage === (Math.ceil(filteredCatalogItems.length / 5) || 1)}
+                  onClick={() => setCatPage(prev => Math.min(prev + 1, Math.ceil(filteredCatalogItems.length / 5) || 1))}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: catPage === (Math.ceil(filteredCatalogItems.length / 5) || 1) ? 0.5 : 1 }}
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
               <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>

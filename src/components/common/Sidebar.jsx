@@ -44,7 +44,7 @@ export const Sidebar = ({ currentTab, setCurrentTab }) => {
   };
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '76px' : '260px');
+    document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '76px' : '264px');
   }, [isCollapsed]);
 
   useEffect(() => {
@@ -66,14 +66,14 @@ export const Sidebar = ({ currentTab, setCurrentTab }) => {
 
   const adminNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'stores', label: 'Store', icon: Building2 },
+    { id: 'stores', label: 'Hostel Stores', icon: Building2 },
     { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'requirements', label: 'Store Requirements & Consolidation', icon: Layers },
+    { id: 'requirements', label: 'Store Requirements', icon: Layers },
     { id: 'quotations', label: 'Quotations', icon: GitCompare },
     { id: 'suppliers', label: 'Suppliers', icon: Truck },
-    { id: 'purchases', label: 'Purchases', icon: ShoppingBag },
-    { id: 'payments', label: 'Bills', icon: CreditCard },
-    { id: 'reports', label: 'Reports', icon: BarChart3 }
+    { id: 'purchases', label: 'Purchase Orders', icon: ShoppingBag },
+    { id: 'payments', label: 'Bills & Payments', icon: CreditCard },
+    { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 }
   ];
 
   const storeNav = [
@@ -103,7 +103,7 @@ export const Sidebar = ({ currentTab, setCurrentTab }) => {
       onMouseEnter={() => isCollapsed && setIsHoverExpanded(true)}
       onMouseLeave={() => isCollapsed && setIsHoverExpanded(false)}
       style={{
-        width: isExpandedVisually ? '260px' : '76px',
+        width: isExpandedVisually ? '264px' : '76px',
         height: '100vh',
         position: 'fixed',
         top: 0,
@@ -121,103 +121,19 @@ export const Sidebar = ({ currentTab, setCurrentTab }) => {
       {/* Brand Header */}
       <div style={{
         height: 'var(--topbar-height)',
-        padding: isExpandedVisually ? '0 16px 0 20px' : '0 12px',
+        padding: isExpandedVisually ? '0 20px' : '0 12px',
         borderBottom: '1px solid var(--sidebar-border)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: isExpandedVisually ? 'space-between' : 'center',
+        justifyContent: isExpandedVisually ? 'flex-start' : 'center',
         flexShrink: 0
       }}>
-        {isExpandedVisually ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-              <Logo size={34} showText={true} />
-            </div>
-            
-            <button
-              type="button"
-              onClick={toggleCollapse}
-              title="Retract Sidebar Inside (Auto-Collapse)"
-              style={{
-                background: 'var(--sidebar-hover-bg)',
-                border: '1px solid var(--sidebar-border)',
-                borderRadius: '8px',
-                color: 'var(--sidebar-text-hover)',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                flexShrink: 0
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--color-primary)';
-                e.currentTarget.style.borderColor = 'var(--color-primary)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--sidebar-text-hover)';
-                e.currentTarget.style.borderColor = 'var(--sidebar-border)';
-              }}
-            >
-              <PanelLeftClose size={18} />
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={toggleCollapse}
-            title="Expand Navigation Sidebar"
-            style={{
-              background: 'var(--sidebar-hover-bg)',
-              border: '1px solid var(--sidebar-border)',
-              borderRadius: '10px',
-              color: 'var(--color-primary)',
-              width: '42px',
-              height: '42px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              flexShrink: 0
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--sidebar-active-bg)';
-              e.currentTarget.style.borderColor = 'var(--color-primary)';
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--sidebar-hover-bg)';
-              e.currentTarget.style.borderColor = 'var(--sidebar-border)';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            <PanelLeftOpen size={20} />
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+          <Logo size={34} showText={isExpandedVisually} />
+        </div>
       </div>
 
-      {/* Navigation Header Subtitle */}
-      {isExpandedVisually && (
-        <div style={{ padding: '14px 20px 6px' }}>
-          <div style={{
-            fontSize: '0.68rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            color: 'var(--sidebar-text)',
-            opacity: 0.8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-primary)' }}></div>
-            {role === 'admin' ? 'ADMIN PORTAL' : role === 'store' ? 'STORE PORTAL' : 'SUPPLIER PORTAL'}
-          </div>
-        </div>
-      )}
+
 
       {/* Navigation List */}
       <nav style={{ flex: 1, padding: isExpandedVisually ? '10px 12px' : '16px 8px', overflowY: 'auto' }}>

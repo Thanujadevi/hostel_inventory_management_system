@@ -86,48 +86,46 @@ export const Table = ({
         </table>
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-            Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> (5 items per page)
-          </div>
-
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: currentPage === 1 ? 0.5 : 1 }}
-            >
-              <ChevronLeft size={14} /> Previous
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-              <button
-                key={pageNum}
-                type="button"
-                className={`btn btn-sm ${currentPage === pageNum ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setCurrentPage(pageNum)}
-                style={{ minWidth: '32px', padding: '4px 8px' }}
-              >
-                {pageNum}
-              </button>
-            ))}
-
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: currentPage === totalPages ? 0.5 : 1 }}
-            >
-              Next <ChevronRight size={14} />
-            </button>
-          </div>
+      {/* Always Render Pagination Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+        <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+          Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({pageSize} items per page)
         </div>
-      )}
+
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: currentPage === 1 ? 0.5 : 1 }}
+          >
+            <ChevronLeft size={14} /> Previous
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+            <button
+              key={pageNum}
+              type="button"
+              className={`btn btn-sm ${currentPage === pageNum ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setCurrentPage(pageNum)}
+              style={{ minWidth: '32px', padding: '4px 8px' }}
+            >
+              {pageNum}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: currentPage === totalPages ? 0.5 : 1 }}
+          >
+            Next <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

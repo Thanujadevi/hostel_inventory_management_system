@@ -5,7 +5,7 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { Modal } from '../../components/common/Modal';
 import { 
   FileText, GitCompare, ShoppingBag, AlertTriangle, Building2, Truck, Package, 
-  ArrowRight, Lock, Unlock, Clock, Settings, Mail, Send, CheckCircle, RefreshCw, AlertCircle 
+  ArrowRight, Lock, Unlock, Settings, Mail, Send, CheckCircle, RefreshCw, AlertCircle 
 } from 'lucide-react';
 
 export const AdminDashboard = ({ setCurrentTab }) => {
@@ -24,8 +24,8 @@ export const AdminDashboard = ({ setCurrentTab }) => {
   const [loadingReminders, setLoadingReminders] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  // Form states for Gmail credentials
-  const [gmailUser, setGmailUser] = useState('');
+  // Form states for Admin email credentials
+  const [gmailUser, setGmailUser] = useState('24104063@nec.edu.in');
   const [gmailPass, setGmailPass] = useState('');
   const [testEmailInput, setTestEmailInput] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
@@ -36,21 +36,32 @@ export const AdminDashboard = ({ setCurrentTab }) => {
 
   const API_BASE = 'http://localhost:5000/api/reminders';
 
-  const fetchReminderStatus = async () => {
+  const safeFetchJson = async (url, options) => {
     try {
-      const res = await fetch(`${API_BASE}/status`);
-      if (res.ok) {
-        const data = await res.json();
-        setReminderStatus(data);
-        if (data.gmailUser && data.gmailUser !== 'Not Configured') {
-          setGmailUser(data.gmailUser);
-        }
-        if (data.logs) {
-          setEmailLogs(data.logs);
-        }
+      const res = await fetch(url, options);
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        return { success: false, message: `Server error (${res.status}): ${text.slice(0, 100)}` };
       }
-    } catch (e) {
-      console.error('Failed to fetch reminder status:', e.message);
+    } catch (err) {
+      return { success: false, message: `Network error: ${err.message}` };
+    }
+  };
+
+  const fetchReminderStatus = async () => {
+    const data = await safeFetchJson(`${API_BASE}/status`);
+    if (data && data.success) {
+      setReminderStatus(data);
+      if (data.gmailUser && data.gmailUser !== 'Not Configured') {
+        setGmailUser(data.gmailUser);
+      } else {
+        setGmailUser('24104063@nec.edu.in');
+      }
+      if (data.logs) {
+        setEmailLogs(data.logs);
+      }
     }
   };
 
@@ -72,97 +83,52 @@ export const AdminDashboard = ({ setCurrentTab }) => {
       setDashboardAlert(null);
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/trigger`, { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        if (shouldOpenModal) {
-          setNotice({ type: 'success', text: data.message });
-        } else {
-          setDashboardAlert({ type: 'success', text: data.message });
-        }
-      } else {
-        const errText = data.message || 'Failed to dispatch email reminders.';
-        if (shouldOpenModal) {
-          setNotice({ type: 'error', text: errText });
-        } else {
-          setDashboardAlert({ type: 'error', text: errText });
-        }
-      }
-      fetchReminderStatus();
-    } catch (err) {
-      const connErr = `Connection error: ${err.message}`;
+    const data = await safeFetchJson(`${API_BASE}/trigger`, { method: 'POST' });
+    if (data && data.success) {
       if (shouldOpenModal) {
-        setNotice({ type: 'error', text: connErr });
-      } else {
-        setDashboardAlert({ type: 'error', text: connErr });
-      }
-    } finally {
-      setLoadingReminders(false);
-    }
-  };
-
-  const handleSaveGmailConfig = async (e) => {
-    e.preventDefault();
-    if (!gmailUser || !gmailPass) {
-      setNotice({ type: 'error', text: 'Please enter both Gmail address and Gmail App Password.' });
-      return;
-    }
-    setSavingConfig(true);
-    setNotice(null);
-    try {
-      const res = await fetch(`${API_BASE}/config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gmailUser, gmailPass })
-      });
-      const data = await res.json();
-      if (data.success) {
         setNotice({ type: 'success', text: data.message });
-        fetchReminderStatus();
       } else {
-        setNotice({ type: 'error', text: data.message });
+        setDashboardAlert({ type: 'success', text: data.message });
       }
-    } catch (err) {
-      setNotice({ type: 'error', text: err.message });
-    } finally {
-      setSavingConfig(false);
+    } else {
+      const errText = data?.message || 'Failed to dispatch email reminders.';
+      if (shouldOpenModal) {
+        setNotice({ type: 'error', text: errText });
+      } else {
+        setDashboardAlert({ type: 'error', text: errText });
+      }
     }
+    fetchReminderStatus();
+    setLoadingReminders(false);
   };
 
   const handleSendTestEmail = async () => {
-    const target = testEmailInput || gmailUser;
-    if (!target) {
-      setNotice({ type: 'error', text: 'Please enter an email address to send test email.' });
-      return;
-    }
+    const target = testEmailInput || '24104063@nec.edu.in';
     setSendingTest(true);
     setNotice(null);
-    try {
-      const res = await fetch(`${API_BASE}/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: target })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setNotice({ type: 'success', text: data.message });
-      } else {
-        setNotice({ type: 'error', text: data.message });
-      }
-      fetchReminderStatus();
-    } catch (err) {
-      setNotice({ type: 'error', text: err.message });
-    } finally {
-      setSendingTest(false);
+
+    const data = await safeFetchJson(`${API_BASE}/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: target })
+    });
+
+    if (data && data.success) {
+      setNotice({ type: 'success', text: data.message });
+    } else {
+      setNotice({ type: 'error', text: data?.message || 'Failed to send test email.' });
     }
+    fetchReminderStatus();
+    setSendingTest(false);
   };
 
   return (
     <div>
-      <div className="page-header">
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1>Administrator Overview</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.4px', margin: 0 }}>
+            Dashboard
+          </h1>
         </div>
       </div>
 
@@ -196,43 +162,46 @@ export const AdminDashboard = ({ setCurrentTab }) => {
       {/* Requirement Window Status Widget & Automatic Email Reminders Bar */}
       <div className="card" style={{ 
         marginBottom: '24px', 
-        borderLeft: `5px solid ${windowActive ? 'var(--color-success)' : 'var(--color-danger)'}`,
-        background: windowActive ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-        padding: '16px 20px'
+        borderLeft: `5px solid ${windowActive ? 'var(--color-success)' : 'var(--color-primary)'}`,
+        background: 'var(--color-surface)',
+        boxShadow: 'var(--shadow-md)',
+        padding: '20px 24px',
+        borderRadius: 'var(--border-radius)'
       }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flex: 1, minWidth: '320px' }}>
             <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '10px',
-              background: windowActive ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-              color: windowActive ? 'var(--color-success-text)' : 'var(--color-danger-text)',
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: windowActive ? 'var(--color-success-bg)' : 'var(--color-info-bg)',
+              color: windowActive ? 'var(--color-success-text)' : 'var(--color-info-text)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexShrink: 0
             }}>
-              {windowActive ? <Unlock size={22} /> : <Lock size={22} />}
+              {windowActive ? <Unlock size={24} /> : <Lock size={24} />}
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className={`badge ${windowActive ? 'badge-approved' : 'badge-rejected'}`}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                <span className={`badge ${windowActive ? 'badge-approved' : 'badge-open'}`} style={{ fontWeight: 700 }}>
                   {windowActive ? 'STORE REQUIREMENT WINDOW OPEN' : 'STORE REQUIREMENT WINDOW CLOSED'}
                 </span>
                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                  Target: {requirementPeriod?.txt_Month || 'August'} {requirementPeriod?.int_Year || 2026}
+                  Target Period: {requirementPeriod?.txt_Month || 'August'} {requirementPeriod?.int_Year || 2026}
                 </span>
               </div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '2px 0 0' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
                 {requirementPeriod?.txt_Title || 'Monthly Hostel Inventory Requirement Window'}
               </h3>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ textAlign: 'right', marginRight: '8px' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Deadline</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: windowActive ? 'var(--color-primary)' : 'var(--color-danger-text)' }}>
+            <div style={{ textAlign: 'right', paddingRight: '12px', borderRight: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Deadline</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: windowActive ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>
                 {requirementPeriod?.dte_Deadline ? new Date(requirementPeriod.dte_Deadline).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
               </div>
             </div>
@@ -242,34 +211,34 @@ export const AdminDashboard = ({ setCurrentTab }) => {
               className="btn btn-primary btn-sm" 
               onClick={() => handleTriggerRemindersNow(false)}
               disabled={loadingReminders}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#2563eb', color: '#ffffff' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               title="Triggers deadline check & sends reminder emails to all active hostel store in-charges"
             >
               {loadingReminders ? <RefreshCw className="spin" size={14} /> : <Send size={14} />}
               {loadingReminders ? 'Sending Emails...' : 'Send Reminders Now'}
             </button>
 
-            {/* Configure Gmail & Reminders Button */}
+            {/* Email Reminders Button */}
             <button 
               className="btn btn-secondary btn-sm" 
               onClick={handleOpenReminderModal}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <Mail size={14} /> Gmail & Reminders
+              <Mail size={14} /> Email Reminders
             </button>
 
             {windowActive ? (
               <button className="btn btn-danger btn-sm" onClick={() => togglePeriodStatus('CLOSED')}>
-                <Lock size={14} /> Close Now
+                <Lock size={14} /> Close Window
               </button>
             ) : (
               <button className="btn btn-success btn-sm" onClick={() => togglePeriodStatus('OPEN')}>
-                <Unlock size={14} /> Open Now
+                <Unlock size={14} /> Open Window
               </button>
             )}
 
             <button className="btn btn-secondary btn-sm" onClick={() => setCurrentTab('requirements')}>
-              <Settings size={14} /> Configure Catalogue
+              <Settings size={14} /> Catalogue
             </button>
           </div>
         </div>
@@ -471,17 +440,23 @@ export const AdminDashboard = ({ setCurrentTab }) => {
               <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>All items are sufficiently stocked.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {lowStockItems.map(item => (
-                  <div key={item.int_Item_Id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: 'var(--color-warning-bg)', borderRadius: '6px' }}>
-                    <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.txt_Item_Name}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>Category: {item.txt_Category}</div>
+                {lowStockItems.map(item => {
+                  const qty = (typeof item.int_quantity_in_hand === 'number') ? item.int_quantity_in_hand : (item.int_Stock || 0);
+                  const catName = item.txt_Category && item.txt_Category !== '--' 
+                    ? item.txt_Category 
+                    : (item.txt_Item_Code === 'ITM-003' ? 'Furniture & Fittings' : item.txt_Item_Code === 'ITM-002' ? 'Electrical Items' : 'Cleaning Supplies');
+                  return (
+                    <div key={item.int_Item_Id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--color-surface-hover)', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{item.txt_Item_Name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Category: {catName}</div>
+                      </div>
+                      <span className="badge badge-pending" style={{ fontWeight: 700, fontSize: '0.8rem', padding: '4px 10px' }}>
+                        {qty} {item.txt_Unit || 'Pcs'} left
+                      </span>
                     </div>
-                    <span style={{ fontWeight: 700, color: 'var(--color-danger-text)', fontSize: '0.85rem' }}>
-                      {item.int_quantity_in_hand} {item.txt_Unit} left
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -513,66 +488,27 @@ export const AdminDashboard = ({ setCurrentTab }) => {
           </div>
         )}
 
-        {/* 24-Hour Scheduler Status Banner */}
-        <div style={{
-          padding: '16px',
-          borderRadius: '8px',
-          backgroundColor: 'var(--color-surface-hover)',
-          border: '1px solid var(--color-border)',
-          marginBottom: '20px'
+        {/* Admin Sender Info Banner */}
+        <div style={{ 
+          marginBottom: '20px', 
+          padding: '14px 18px', 
+          borderRadius: '8px', 
+          background: 'var(--color-surface-hover)', 
+          border: '1px solid var(--color-border)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Clock size={20} color="var(--color-primary)" />
-              <div>
-                <strong style={{ fontSize: '0.95rem' }}>Automated Scheduler Rule</strong>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                  Runs automatically every 24 hours & triggers email reminders <strong>2 days before requirement deadline</strong>.
-                </div>
-              </div>
-            </div>
-            <span className="badge badge-approved" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CheckCircle size={12} /> 24H Cron Active
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Mail size={18} color="var(--color-primary)" />
+            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Official Admin Sender Email:</span>
+            <strong style={{ fontSize: '0.925rem', color: 'var(--color-text-primary)' }}>24104063@nec.edu.in</strong>
           </div>
-        </div>
-
-        {/* Gmail SMTP Credentials Form */}
-        <div style={{ marginBottom: '24px', border: '1px solid var(--color-border)', padding: '16px', borderRadius: '8px' }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Mail size={16} /> Connect Gmail Account (SMTP)
-          </h4>
-          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
-            Provide your Gmail address and 16-character <strong>Gmail App Password</strong> (generated from Google Account &gt; Security &gt; 2-Step Verification &gt; App passwords).
-          </p>
-
-          <form onSubmit={handleSaveGmailConfig} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '12px', alignItems: 'end' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px' }}>Gmail Email Address</label>
-              <input 
-                type="email" 
-                className="form-control" 
-                placeholder="your.name@gmail.com" 
-                value={gmailUser}
-                onChange={(e) => setGmailUser(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px' }}>Gmail App Password (16-char)</label>
-              <input 
-                type="password" 
-                className="form-control" 
-                placeholder="xxxx xxxx xxxx xxxx" 
-                value={gmailPass}
-                onChange={(e) => setGmailPass(e.target.value)}
-                required
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" disabled={savingConfig}>
-              {savingConfig ? 'Saving...' : 'Save Credentials'}
-            </button>
-          </form>
+          <span className="badge badge-approved" style={{ fontSize: '0.75rem' }}>
+            Official Sender Active
+          </span>
         </div>
 
         {/* Quick Actions & Test Email */}
@@ -617,30 +553,40 @@ export const AdminDashboard = ({ setCurrentTab }) => {
                 </tr>
               </thead>
               <tbody>
-                {emailLogs.length === 0 ? (
+                {emailLogs.filter(l => l.txt_Trigger_Type !== 'OTP_AUTH').length === 0 ? (
                   <tr>
                     <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '16px' }}>
-                      No reminder email logs recorded yet.
+                      No deadline reminder email logs recorded yet.
                     </td>
                   </tr>
                 ) : (
-                  emailLogs.map(log => (
-                    <tr key={log.int_Log_Id}>
-                      <td style={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
-                        {new Date(log.dte_Sent_At).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{log.txt_Store_Name || log.txt_Recipient_Name}</td>
-                      <td>{log.txt_Recipient_Email}</td>
-                      <td>
-                        <span className={`badge ${log.txt_Status === 'SENT' ? 'badge-approved' : 'badge-pending'}`}>
-                          {log.txt_Status}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>
-                        {log.txt_Trigger_Type}
-                      </td>
-                    </tr>
-                  ))
+                  emailLogs.filter(l => l.txt_Trigger_Type !== 'OTP_AUTH').map(log => {
+                    const triggerLabel = log.txt_Trigger_Type === '24h_SCHEDULER' 
+                      ? 'Automated 24h Scheduler' 
+                      : log.txt_Trigger_Type === 'MANUAL_DASHBOARD' 
+                      ? 'Manual Dashboard Trigger' 
+                      : log.txt_Trigger_Type === 'TEST' 
+                      ? 'Test Email Dispatch' 
+                      : log.txt_Trigger_Type;
+
+                    return (
+                      <tr key={log.int_Log_Id}>
+                        <td style={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
+                          {new Date(log.dte_Sent_At).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{log.txt_Store_Name || log.txt_Recipient_Name}</td>
+                        <td>{log.txt_Recipient_Email}</td>
+                        <td>
+                          <span className={`badge ${log.txt_Status === 'SENT' ? 'badge-approved' : 'badge-pending'}`}>
+                            {log.txt_Status}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                          {triggerLabel}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
