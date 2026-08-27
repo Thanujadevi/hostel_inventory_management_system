@@ -3,7 +3,7 @@ import pool from '../config/db.js';
 export const ItemModel = {
   async getAll() {
     const [rows] = await pool.query(`
-      SELECT i.*, c.txt_Category_Name 
+      SELECT i.*, c.txt_Category_Name, c.txt_Category_Name AS txt_Category 
       FROM tbl_Item i
       LEFT JOIN tbl_Category c ON i.int_Category_Id = c.int_Category_Id
       ORDER BY i.int_Item_Id DESC

@@ -13,6 +13,7 @@ export const DataProvider = ({ children }) => {
   const [quotations, setQuotations] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [admins, setAdmins] = useState([]);
   const [requirementPeriod, setRequirementPeriod] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState(null);
@@ -27,7 +28,7 @@ export const DataProvider = ({ children }) => {
   const refreshAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [sData, supData, cData, iData, rData, qData, pData, payData, reqPeriod] = await Promise.all([
+      const [sData, supData, cData, iData, rData, qData, pData, payData, admData, reqPeriod] = await Promise.all([
         apiService.getStores(),
         apiService.getSuppliers(),
         apiService.getCategories(),
@@ -36,6 +37,7 @@ export const DataProvider = ({ children }) => {
         apiService.getQuotations(),
         apiService.getPurchases(),
         apiService.getPayments(),
+        apiService.getAdmins(),
         mockApi.getRequirementPeriod()
       ]);
       setStores(sData || []);
@@ -46,6 +48,7 @@ export const DataProvider = ({ children }) => {
       setQuotations(qData || []);
       setPurchases(pData || []);
       setPayments(payData || []);
+      setAdmins(admData || []);
       setRequirementPeriod(reqPeriod);
     } catch (err) {
       console.error("Failed to load inventory data:", err);
@@ -127,6 +130,7 @@ export const DataProvider = ({ children }) => {
       quotations,
       purchases,
       payments,
+      admins,
       requirementPeriod,
       saveRequirementPeriod,
       togglePeriodStatus,

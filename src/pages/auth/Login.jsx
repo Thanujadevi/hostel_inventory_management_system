@@ -160,10 +160,13 @@ export const Login = () => {
     }
   }, [otpSent]);
 
-  // Determine if input is a Mobile Number
+  // Determine if input is a valid 10-digit Mobile Number (Indian mobile format: 6-9 followed by 9 digits)
   const isMobileNumber = (val) => {
-    const cleaned = val.trim().replace(/\D/g, '');
-    return cleaned.length >= 7 && /^\d+$/.test(cleaned);
+    if (!val) return false;
+    const trimmed = val.trim();
+    // Allow +91, 91, or 0 prefix
+    const cleaned = trimmed.replace(/^(\+91|91|0)/, '').replace(/\D/g, '');
+    return cleaned.length === 10 && /^[6-9]\d{9}$/.test(cleaned);
   };
 
   const isMobile = isMobileNumber(loginInput);
@@ -179,31 +182,31 @@ export const Login = () => {
     }
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
     if (isMobile) {
       if (!otpSent) {
         // Step 1: Send OTP
-        const result = sendSupplierOtp(loginInput);
+        const result = await sendSupplierOtp(loginInput);
         if (result.success) {
           setOtpSent(true);
           setGeneratedOtp(result.otp);
-          showToast(`OTP generated: ${result.otp}`, "info");
+          showToast(result.message || `OTP sent successfully`, "info");
         } else {
           setError(result.message);
         }
       } else {
         // Step 2: Verify OTP
-        const result = loginSupplierWithOtp(loginInput, inputOtp, generatedOtp);
+        const result = await loginSupplierWithOtp(loginInput, inputOtp, generatedOtp);
         if (!result.success) {
           setError(result.message);
         }
       }
     } else {
-      // Staff Password Login
-      const result = loginWithCredentials(loginInput, password);
+      // Password Login (For Staff Usernames & Non-mobile numeric User ID/Code)
+      const result = await loginWithCredentials(loginInput, password);
       if (!result.success) {
         setError(result.message);
       }
@@ -221,12 +224,21 @@ export const Login = () => {
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    const cleanedPhone = (regData.txt_Phone || '').trim().replace(/^(\+91|91|0)/, '').replace(/\D/g, '');
+    if (cleanedPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanedPhone)) {
+      setError("Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.");
+      return;
+    }
+
     try {
       await mockApi.saveSupplier({
         txt_Store_Name: regData.txt_Store_Name,
         txt_Owner_Name: regData.txt_Owner_Name,
-        txt_Phone: regData.txt_Phone,
-        txt_Email: regData.txt_Email || `${regData.txt_Phone}@supplier.com`,
+        txt_Supplier_Name: regData.txt_Store_Name,
+        txt_Contact_Person: regData.txt_Owner_Name,
+        txt_Phone: cleanedPhone,
+        txt_Email: regData.txt_Email || `${cleanedPhone}@supplier.com`,
         txt_Profile_Completed: 'N'
       });
       await refreshAll();
@@ -234,14 +246,13 @@ export const Login = () => {
       setIsRegisterOpen(false);
 
       // Auto pre-fill registered phone number into single input and send OTP
-      setLoginInput(regData.txt_Phone);
-      setError(null);
+      setLoginInput(cleanedPhone);
 
-      const res = sendSupplierOtp(regData.txt_Phone);
+      const res = await sendSupplierOtp(cleanedPhone);
       if (res.success) {
         setOtpSent(true);
         setGeneratedOtp(res.otp);
-        showToast(`Your demo OTP is: ${res.otp}`, "info");
+        showToast(res.message || `OTP sent successfully`, "info");
       }
 
       setRegData({
@@ -280,9 +291,7 @@ export const Login = () => {
 
         {/* Header Title & Subtitle */}
         <div style={{ textAlign: 'center', marginBottom: '22px' }}>
-          <div>
-            <span className="login-college-tag">NATIONAL ENGINEERING COLLEGE</span>
-          </div>
+          <div className="login-college-tag">NATIONAL ENGINEERING COLLEGE</div>
           <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.3, marginBottom: '4px', letterSpacing: '-0.4px' }}>
             Hostel Inventory System
           </h1>
@@ -304,7 +313,31 @@ export const Login = () => {
             textAlign: 'center',
             boxShadow: '0 2px 8px rgba(239, 68, 68, 0.15)'
           }}>
-            {error}
+            <div>{error}</div>
+            {error.includes('not registered') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRegData(prev => ({ ...prev, txt_Phone: loginInput }));
+                  setIsRegisterOpen(true);
+                  setError(null);
+                }}
+                style={{
+                  marginTop: '10px',
+                  backgroundColor: '#1e40af',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '7px 14px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(30, 64, 175, 0.3)'
+                }}
+              >
+                + Register "{loginInput}" as New Supplier
+              </button>
+            )}
           </div>
         )}
 
@@ -334,7 +367,7 @@ export const Login = () => {
           <div className="form-group" style={{ marginBottom: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem', margin: 0 }}>
-                Mobile Number or Username
+                Username or Supplier Mobile Number
               </label>
               {loginInput.trim().length > 0 && (
                 <span style={{
@@ -346,7 +379,7 @@ export const Login = () => {
                   color: isMobile ? '#1e40af' : 'var(--color-primary)',
                   transition: 'all 0.2s ease'
                 }}>
-                  {isMobile ? 'Supplier (Mobile OTP)' : 'Staff (Username)'}
+                  {isMobile ? 'Supplier (Mobile OTP)' : 'Admin / Store (Username)'}
                 </span>
               )}
             </div>
@@ -367,13 +400,34 @@ export const Login = () => {
                 ref={primaryInputRef}
                 type="text"
                 className="login-input"
-                placeholder="Enter Mobile Number or Username"
+                placeholder="Enter Username (Admin/Store) or Mobile No."
                 required
                 disabled={otpSent}
                 value={loginInput}
                 onChange={handleInputChange}
               />
             </div>
+            
+            {/* Quick Demo Supplier Number Shortcuts */}
+            {isMobile && !otpSent && (
+              <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                Demo Suppliers: {' '}
+                <button
+                  type="button"
+                  onClick={() => { setLoginInput('9988776655'); setError(null); }}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: '0 4px' }}
+                >
+                  9988776655
+                </button> | {' '}
+                <button
+                  type="button"
+                  onClick={() => { setLoginInput('9876501234'); setError(null); }}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: '0 4px' }}
+                >
+                  9876501234
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Conditional Field 1: OTP Input for Supplier Mobile Flow */}
@@ -381,7 +435,7 @@ export const Login = () => {
             <div className="form-group" style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem', margin: 0 }}>
-                  Enter 4-Digit OTP
+                  Enter 6-Digit OTP
                 </label>
                 <button
                   type="button"
@@ -401,7 +455,7 @@ export const Login = () => {
                   ref={otpInputRef}
                   type="text"
                   className="login-input"
-                  placeholder="e.g. 1234"
+                  placeholder="e.g. 123456"
                   required
                   maxLength={6}
                   style={{
@@ -416,12 +470,14 @@ export const Login = () => {
             </div>
           )}
 
-          {/* Conditional Field 2: Password Input for Staff Username Flow */}
+          {/* Conditional Field 2: Password Input (For Staff Username Only) */}
           {!isMobile && (
             <div className="form-group" style={{ marginBottom: '22px' }}>
-              <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem', marginBottom: '6px', display: 'block' }}>
-                Password
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem', margin: 0 }}>
+                  Password
+                </label>
+              </div>
               <div className="login-input-wrapper">
                 <span className="login-input-icon">
                   <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

@@ -114,8 +114,18 @@ const getDB = () => {
         let uSup = { ...sup };
         if (!uSup.txt_Country) { uSup.txt_Country = 'India'; dirty = true; }
         if (uSup.txt_Profile_Completed === undefined) { uSup.txt_Profile_Completed = 'Y'; dirty = true; }
+        if (!db.v8_unrated_cleaned) {
+          if (uSup.dbl_Rating >= 4.5 || !uSup.dbl_Rating) {
+            uSup.dbl_Rating = 0;
+            dirty = true;
+          }
+        }
         return uSup;
       });
+      if (!db.v8_unrated_cleaned) {
+        db.v8_unrated_cleaned = true;
+        dirty = true;
+      }
     }
     if (db.tbl_Requirement_Period === undefined) {
       db.tbl_Requirement_Period = null;
@@ -235,25 +245,39 @@ export const mockApi = {
 
   saveSupplier: async (supplierData) => {
     const apiRes = await apiFetch('/suppliers', { method: 'POST', body: JSON.stringify(supplierData) });
-    if (apiRes && Array.isArray(apiRes)) return apiRes;
-    await delay();
     const db = getDB();
+    if (apiRes && Array.isArray(apiRes)) {
+      db.tbl_Supplier = apiRes;
+      saveDB(db);
+      return apiRes;
+    }
+    await delay();
     if (supplierData.int_Supplier_Id) {
       const index = db.tbl_Supplier.findIndex(s => s.int_Supplier_Id === supplierData.int_Supplier_Id);
       if (index !== -1) {
         db.tbl_Supplier[index] = {
           ...db.tbl_Supplier[index],
           ...supplierData,
+          txt_Store_Name: supplierData.txt_Store_Name || supplierData.txt_Supplier_Name || db.tbl_Supplier[index].txt_Store_Name,
+          txt_Owner_Name: supplierData.txt_Owner_Name || supplierData.txt_Contact_Person || db.tbl_Supplier[index].txt_Owner_Name,
+          txt_Supplier_Name: supplierData.txt_Supplier_Name || supplierData.txt_Store_Name || db.tbl_Supplier[index].txt_Supplier_Name,
+          txt_Contact_Person: supplierData.txt_Contact_Person || supplierData.txt_Owner_Name || db.tbl_Supplier[index].txt_Contact_Person,
           dte_Updated_Date: new Date().toISOString().split('T')[0]
         };
       }
     } else {
       const newId = Math.max(...db.tbl_Supplier.map(s => s.int_Supplier_Id || 0), 0) + 1;
+      const storeName = supplierData.txt_Store_Name || supplierData.txt_Supplier_Name || '';
+      const ownerName = supplierData.txt_Owner_Name || supplierData.txt_Contact_Person || '';
       const newSupplier = {
         ...supplierData,
         int_Supplier_Id: newId,
         txt_Supplier_Code: supplierData.txt_Supplier_Code || generateSupplierCode(db.tbl_Supplier),
-        dbl_Rating: supplierData.dbl_Rating || 4.5,
+        txt_Store_Name: storeName,
+        txt_Owner_Name: ownerName,
+        txt_Supplier_Name: storeName,
+        txt_Contact_Person: ownerName,
+        dbl_Rating: supplierData.dbl_Rating !== undefined ? Number(supplierData.dbl_Rating) : 0,
         txt_Active: supplierData.txt_Active || 'Y',
         txt_Profile_Completed: supplierData.txt_Profile_Completed !== undefined ? supplierData.txt_Profile_Completed : 'N',
         txt_Country: supplierData.txt_Country || 'India',
@@ -265,6 +289,29 @@ export const mockApi = {
       db.tbl_Supplier.push(newSupplier);
     }
     saveDB(db);
+    return db.tbl_Supplier;
+  },
+
+  rateSupplier: async (supplierIdOrName, newRating) => {
+    await delay();
+    const db = getDB();
+    const target = String(supplierIdOrName || '').toLowerCase();
+    const supplier = db.tbl_Supplier.find(s => 
+      s.int_Supplier_Id === Number(supplierIdOrName) || 
+      (s.txt_Store_Name && s.txt_Store_Name.toLowerCase() === target) ||
+      (s.txt_Supplier_Name && s.txt_Supplier_Name.toLowerCase() === target)
+    );
+    if (supplier) {
+      const currentRating = Number(supplier.dbl_Rating || 0);
+      const ratingCount = Number(supplier.int_Rating_Count || (currentRating > 0 ? 1 : 0));
+      const totalScore = (currentRating * ratingCount) + Number(newRating);
+      const newCount = ratingCount + 1;
+      const avgRating = Math.round((totalScore / newCount) * 10) / 10;
+      
+      supplier.dbl_Rating = avgRating;
+      supplier.int_Rating_Count = newCount;
+      saveDB(db);
+    }
     return db.tbl_Supplier;
   },
 

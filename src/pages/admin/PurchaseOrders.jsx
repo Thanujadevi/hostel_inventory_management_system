@@ -10,16 +10,16 @@ export const AdminPurchaseOrders = () => {
   const [selectedPO, setSelectedPO] = useState(null);
 
   const columns = [
-    { header: 'PO Number', accessor: 'po_number', render: row => <strong style={{ color: 'var(--color-primary)' }}>{row.po_number}</strong> },
+    { header: 'Order No', accessor: 'po_number', render: row => <strong style={{ color: 'var(--color-primary)' }}>{row.po_number}</strong> },
     { header: 'Hostel Store', accessor: 'store_name', render: row => <strong style={{ color: 'var(--color-text-primary)' }}>{row.store_name}</strong> },
-    { header: 'Awarded Supplier', accessor: 'supplier_name', render: row => (
+    { header: 'Supplier', accessor: 'supplier_name', render: row => (
       <div>
         <div style={{ fontWeight: 600 }}>{row.supplier_name}</div>
         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Ph: {row.supplier_phone}</div>
       </div>
     )},
-    { header: 'PO Date', accessor: 'dte_Purchase_Date' },
-    { header: 'Total PO Amount', accessor: 'dec_Final_Amount', render: row => (
+    { header: 'Order Date', accessor: 'dte_Purchase_Date' },
+    { header: 'Total Amount', accessor: 'dec_Final_Amount', render: row => (
       <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>₹{Number(row.dec_Final_Amount).toLocaleString('en-IN')}</span>
     )},
     { header: 'Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status} /> },
@@ -34,31 +34,31 @@ export const AdminPurchaseOrders = () => {
     <div>
       <div className="page-header">
         <div>
-          <h1>Purchase Order Management</h1>
+          <h1>Manage Orders</h1>
         </div>
       </div>
 
-      <Table columns={columns} data={purchases} searchPlaceholder="Search POs by PO number, store, supplier..." />
+      <Table columns={columns} data={purchases} searchPlaceholder="Search orders by number, store, supplier..." />
 
       {/* PO Detail View Modal */}
       {selectedPO && (
         <Modal
           isOpen={true}
           onClose={() => setSelectedPO(null)}
-          title={`Purchase Order Document: ${selectedPO.po_number}`}
+          title={`Order Details: ${selectedPO.po_number}`}
           maxWidth="700px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: 'var(--color-surface-hover)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>College / Hostel Store</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Hostel Store</div>
                 <div style={{ fontWeight: 700, fontSize: '1rem' }}>{selectedPO.store_name}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Linked Req: {selectedPO.request_no}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Issued To Supplier</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Supplier</div>
                 <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-purple-text)' }}>{selectedPO.supplier_name}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>PO Date: {selectedPO.dte_Purchase_Date}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Date: {selectedPO.dte_Purchase_Date}</div>
               </div>
             </div>
 
@@ -68,7 +68,7 @@ export const AdminPurchaseOrders = () => {
                 <div style={{ fontWeight: 700, fontSize: '1rem' }}>₹{Number(selectedPO.quotation_amount).toLocaleString('en-IN')}</div>
               </div>
               <div className="card" style={{ padding: '12px 16px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Freight Charge</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Transport Charge</span>
                 <div style={{ fontWeight: 700, fontSize: '1rem' }}>₹{Number(selectedPO.transport_cost).toLocaleString('en-IN')}</div>
               </div>
               <div className="card" style={{ padding: '12px 16px', backgroundColor: 'var(--color-primary-light)' }}>
@@ -81,7 +81,7 @@ export const AdminPurchaseOrders = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Truck size={20} color="var(--color-warning-text)" />
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-warning-text)' }}>Fulfillment Status</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-warning-text)' }}>Delivery Status</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Expected delivery within {selectedPO.delivery_days} days</div>
                 </div>
               </div>
@@ -91,7 +91,7 @@ export const AdminPurchaseOrders = () => {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
               <button className="btn btn-secondary" onClick={() => setSelectedPO(null)}>Close</button>
               <button className="btn btn-primary" onClick={() => window.print()}>
-                <Printer size={16} /> Print Purchase Order
+                <Printer size={16} /> Print Order
               </button>
             </div>
           </div>

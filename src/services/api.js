@@ -38,6 +38,14 @@ export const apiService = {
     });
   },
 
+  async getAdmins() {
+    try {
+      return await fetchApi('/auth/admins');
+    } catch (e) {
+      return [];
+    }
+  },
+
   // Stores
   async getStores() {
     try {
@@ -159,14 +167,22 @@ export const apiService = {
     }
   },
 
-  async saveRequest(reqData) {
+  async saveRequest(reqData, reqItems = []) {
+    const payload = {
+      ...reqData,
+      items: reqItems.length > 0 ? reqItems : (reqData.items || [])
+    };
     try {
-      return await fetchApi('/requirements', {
+      const res = await fetchApi('/requirements', {
         method: 'POST',
-        body: JSON.stringify(reqData)
+        body: JSON.stringify(payload)
       });
+      try {
+        await mockApi.createRequirement(reqData, payload.items);
+      } catch (e) {}
+      return res;
     } catch (e) {
-      return await mockApi.saveRequest(reqData);
+      return await mockApi.createRequirement(reqData, payload.items);
     }
   },
 

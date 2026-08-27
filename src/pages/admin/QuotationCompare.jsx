@@ -67,9 +67,9 @@ export const AdminQuotationCompare = () => {
       {/* Header Bar */}
       <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Supplier Quotation Bid Comparison</h1>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Compare Price Quotes</h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginTop: '4px', margin: 0 }}>
-            Compare consolidated product bids from multiple suppliers. The system automatically recommends the minimum budget value (L1 Lowest Bid).
+            Compare price quotes from different suppliers. The system highlights the lowest quote (L1).
           </p>
         </div>
       </div>
@@ -79,7 +79,7 @@ export const AdminQuotationCompare = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '300px' }}>
             <label className="form-label" style={{ margin: 0, whiteSpace: 'nowrap', fontWeight: 700 }}>
-              Select Requirement Request:
+              Select Request:
             </label>
             <select
               className="form-select"
@@ -88,7 +88,7 @@ export const AdminQuotationCompare = () => {
               onChange={e => setSelectedReqId(Number(e.target.value))}
             >
               {targetReqs.length === 0 ? (
-                <option value="">No open requirements found</option>
+                <option value="">No open requests found</option>
               ) : (
                 targetReqs.map(req => (
                   <option key={req.int_Request_Id} value={req.int_Request_Id}>
@@ -110,14 +110,14 @@ export const AdminQuotationCompare = () => {
 
       {!currentReq ? (
         <div className="card" style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-          No requirement selected.
+          No request selected.
         </div>
       ) : reqQuotations.length === 0 ? (
         <div className="card" style={{ padding: '48px', textAlign: 'center' }}>
           <GitCompare size={44} color="var(--color-text-muted)" style={{ marginBottom: '16px', opacity: 0.6 }} />
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>No Supplier Bids Received Yet</h3>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>No Supplier Quotes Received Yet</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '6px', maxWidth: '500px', margin: '6px auto 0' }}>
-            Suppliers have been notified for requirement <strong>{currentReq.txt_Request_No}</strong>. Submitted quotations will automatically appear here for price comparison and L1 recommendation.
+            Suppliers have been notified for request <strong>{currentReq.txt_Request_No}</strong>. Submitted quotes will appear here for comparison.
           </p>
         </div>
       ) : (
@@ -147,17 +147,17 @@ export const AdminQuotationCompare = () => {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-success-text, #059669)', backgroundColor: '#ffffff', padding: '2px 8px', borderRadius: '12px', border: '1px solid var(--color-success-border)' }}>
-                        System L1 Recommendation (Minimum Value)
+                        Lowest Price Option (L1)
                       </span>
                     </div>
                     <h3 style={{ margin: '4px 0 2px 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                       Recommended Supplier: <span style={{ color: 'var(--color-success-text, #059669)' }}>{l1Quotation.supplier_name}</span>
                     </h3>
                     <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                      Offers the lowest total budget of <strong style={{ color: 'var(--color-text-primary)', fontSize: '1rem' }}>₹{l1Quotation.grandTotal.toLocaleString('en-IN')}</strong> (Freight: ₹{l1Quotation.dec_Transport_Cost} | Delivery: {l1Quotation.int_Delivery_Days} Days)
+                      Offers the lowest total price of <strong style={{ color: 'var(--color-text-primary)', fontSize: '1rem' }}>₹{l1Quotation.grandTotal.toLocaleString('en-IN')}</strong> (Transport: ₹{l1Quotation.dec_Transport_Cost} | Delivery: {l1Quotation.int_Delivery_Days} Days)
                       {costSavings > 0 && (
                         <span style={{ fontWeight: 600, color: 'var(--color-success-text, #059669)', marginLeft: '8px' }}>
-                          — Saves ₹{costSavings.toLocaleString('en-IN')} compared to highest bid!
+                          — Saves ₹{costSavings.toLocaleString('en-IN')} compared to highest quote!
                         </span>
                       )}
                     </p>
@@ -167,7 +167,7 @@ export const AdminQuotationCompare = () => {
                 <div>
                   {l1Quotation.txt_Status === 'Approved' ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-success-text)', fontWeight: 700, fontSize: '1rem' }}>
-                      <CheckCircle2 size={22} /> Order Placed & Awarded
+                      <CheckCircle2 size={22} /> Order Placed
                     </div>
                   ) : (
                     <button
@@ -176,7 +176,7 @@ export const AdminQuotationCompare = () => {
                       onClick={() => handleAwardPO(l1Quotation.int_Quotation_Id, l1Quotation.supplier_name)}
                       style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', fontWeight: 700 }}
                     >
-                      <ShoppingCart size={18} /> Accept Recommended Bid & Place Order
+                      <ShoppingCart size={18} /> Accept Quote & Place Order
                     </button>
                   )}
                 </div>
@@ -231,7 +231,13 @@ export const AdminQuotationCompare = () => {
                               Ref: {q.txt_Quotation_No || `QTN-2026-${String(q.int_Quotation_Id).padStart(3, '0')}`}
                             </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <Star size={12} fill="#F59E0B" color="#F59E0B" /> Rating: {q.supplier_rating || 4.5}
+                              {Number(q.supplier_rating || 0) > 0 ? (
+                                <>
+                                  <Star size={12} fill="#F59E0B" color="#F59E0B" /> Rating: {Number(q.supplier_rating).toFixed(1)}
+                                </>
+                              ) : (
+                                <span style={{ fontStyle: 'italic', color: 'var(--color-text-muted)' }}>Unrated</span>
+                              )}
                             </div>
                           </div>
                         </th>

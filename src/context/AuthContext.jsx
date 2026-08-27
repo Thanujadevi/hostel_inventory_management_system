@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { mockApi } from '../services/mockApi';
 
 const AuthContext = createContext();
 const AUTH_KEY = 'hostel_ims_auth_v5';
@@ -47,12 +48,10 @@ export const AuthProvider = ({ children }) => {
 
     // Attempt Express MySQL Backend Auth
     try {
-      const isAdminUser = cleanUsername === 'admin' || cleanUsername === '24104063@nec.edu.in';
-      const roleTry = isAdminUser ? 'admin' : 'store';
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: cleanUsername, password: cleanPassword, role: roleTry })
+        body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
       });
       if (response.ok) {
         const data = await response.json();
@@ -95,13 +94,15 @@ export const AuthProvider = ({ children }) => {
 
     // Dynamic Store Login Check
     let storesList = [];
+    let suppliersList = [];
     const dbData = localStorage.getItem('hostel_ims_db_v5');
     if (dbData) {
       try {
         const parsed = JSON.parse(dbData);
         storesList = parsed.tbl_Store || [];
+        suppliersList = parsed.tbl_Supplier || [];
       } catch (e) {
-        console.error("Error parsing DB for store login:", e);
+        console.error("Error parsing DB for login:", e);
       }
     }
 
@@ -122,7 +123,6 @@ export const AuthProvider = ({ children }) => {
     }
 
     if (matchedStore) {
-      // 1. Check Active Status
       if (matchedStore.txt_Active === 'N' || matchedStore.txt_Active === 'Inactive') {
         return {
           success: false,
@@ -130,7 +130,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // 2. Verify Password
       const expectedPassword = matchedStore.txt_Password || 'storepassword';
       if (cleanPassword !== expectedPassword) {
         return {
@@ -139,7 +138,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // 3. Authenticate Store User
       const newAuth = {
         isLoggedIn: true,
         role: 'store',
@@ -166,19 +164,35 @@ export const AuthProvider = ({ children }) => {
       return { success: true, role: 'store' };
     }
 
-    // Supplier Login Check
-    if (cleanUsername.includes('supplier') || cleanUsername.startsWith('sup')) {
+    // Dynamic Supplier Login Check
+    const cleanInputPhone = cleanUsername.replace(/\D/g, '').slice(-10);
+    let matchedSupplier = suppliersList.find(s =>
+      (cleanInputPhone && (s.txt_Phone || '').replace(/\D/g, '').slice(-10) === cleanInputPhone) ||
+      (s.txt_Supplier_Code && s.txt_Supplier_Code.trim().toLowerCase() === cleanUsername) ||
+      (s.txt_Email && s.txt_Email.trim().toLowerCase() === cleanUsername)
+    );
+
+    if (matchedSupplier) {
+      const expectedPassword = matchedSupplier.txt_Password || 'supplier123';
+      if (cleanPassword !== expectedPassword && cleanPassword !== 'supplier123') {
+        return { success: false, message: 'Invalid supplier password.' };
+      }
+      const storeName = matchedSupplier.txt_Store_Name || matchedSupplier.txt_Supplier_Name || 'Supplier';
+      const ownerName = matchedSupplier.txt_Owner_Name || matchedSupplier.txt_Contact_Person || storeName;
+
       const newAuth = {
         isLoggedIn: true,
         role: 'supplier',
         user: {
-          id: 1,
-          code: 'SUP001',
-          name: 'Registered Supplier',
-          company: 'Supplier Account',
-          email: `${cleanUsername}@supplier.com`,
-          roleTitle: 'Supplier Portal',
-          profileCompleted: false
+          id: matchedSupplier.int_Supplier_Id,
+          code: matchedSupplier.txt_Supplier_Code || `SUP${matchedSupplier.int_Supplier_Id}`,
+          name: ownerName,
+          company: storeName,
+          phone: matchedSupplier.txt_Phone,
+          email: matchedSupplier.txt_Email || `${cleanUsername}@supplier.com`,
+          roleTitle: `Supplier (${storeName})`,
+          profileCompleted: matchedSupplier.txt_Profile_Completed === 'Y',
+          supplierDetails: matchedSupplier
         },
         currentStore: null
       };
@@ -186,7 +200,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true, role: 'supplier' };
     }
 
-    return { success: false, message: 'Invalid username or password. Please try again.' };
+    return { success: false, message: 'Invalid username/mobile number or password. Please try again.' };
   };
 
   const logout = () => {
@@ -216,25 +230,59 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const sendSupplierOtp = (mobileNumber) => {
-    const cleanPhone = (mobileNumber || '').trim().replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length < 7) {
-      return { success: false, message: 'Please enter a valid mobile number.' };
+  const sendSupplierOtp = async (mobileNumber) => {
+    const cleanPhone = (mobileNumber || '').trim().replace(/^(\+91|91|0)/, '').replace(/\D/g, '');
+    if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return { success: false, message: 'Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.' };
     }
 
+    // Try Express backend real SMS OTP endpoint first
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleanPhone })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          otp: data.otp,
+          supplier: data.supplier,
+          message: data.message || `SMS OTP sent successfully to +91 ${cleanPhone}`
+        };
+      } else if (data && data.message) {
+        return { success: false, message: data.message };
+      }
+    } catch (e) {
+      console.warn("Backend send-otp endpoint unavailable, using client fallback:", e);
+    }
+
+    // Client/Offline Fallback
     let suppliersList = [];
-    const dbData = localStorage.getItem(AUTH_KEY.replace('auth', 'db'));
-    if (dbData) {
-      try {
-        const parsed = JSON.parse(dbData);
-        suppliersList = parsed.tbl_Supplier || [];
-      } catch (e) {
-        console.error("Error parsing DB for supplier OTP:", e);
+    try {
+      const fetched = await mockApi.getSuppliers();
+      if (fetched && Array.isArray(fetched) && fetched.length > 0) {
+        suppliersList = fetched;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch suppliers for OTP:", e);
+    }
+
+    if (!suppliersList || suppliersList.length === 0) {
+      const dbData = localStorage.getItem(AUTH_KEY.replace('auth', 'db'));
+      if (dbData) {
+        try {
+          const parsed = JSON.parse(dbData);
+          suppliersList = parsed.tbl_Supplier || [];
+        } catch (e) {
+          console.error("Error parsing DB for supplier OTP:", e);
+        }
       }
     }
 
     const matchedSupplier = suppliersList.find(s => {
-      const sPhone = (s.txt_Phone || '').trim().replace(/\D/g, '');
+      const sPhone = (s.txt_Phone || '').trim().replace(/\D/g, '').slice(-10);
       return sPhone && sPhone === cleanPhone;
     });
 
@@ -248,12 +296,11 @@ export const AuthProvider = ({ children }) => {
     if (matchedSupplier.txt_Active === 'N' || matchedSupplier.txt_Active === 'Inactive') {
       return {
         success: false,
-        message: `Supplier account "${matchedSupplier.txt_Store_Name}" is inactive. Please contact Admin.`
+        message: `Supplier account "${matchedSupplier.txt_Store_Name || matchedSupplier.txt_Supplier_Name}" is inactive. Please contact Admin.`
       };
     }
 
-    // Generate a 4-digit OTP for testing/demo (e.g. 1234 or random)
-    const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     return {
       success: true,
       otp: generatedOtp,
@@ -262,29 +309,63 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
-  const loginSupplierWithOtp = (mobileNumber, inputOtp, expectedOtp) => {
-    const cleanPhone = (mobileNumber || '').trim().replace(/\D/g, '');
+  const loginSupplierWithOtp = async (mobileNumber, inputOtp, expectedOtp) => {
+    const cleanPhone = (mobileNumber || '').trim().replace(/\D/g, '').slice(-10);
     const cleanInputOtp = (inputOtp || '').trim();
 
     if (!cleanInputOtp) {
       return { success: false, message: 'Please enter the OTP.' };
     }
 
+    // Try Express backend verify-otp endpoint first
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleanPhone, otp: cleanInputOtp })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        const newAuth = {
+          isLoggedIn: true,
+          role: 'supplier',
+          user: data.user,
+          currentStore: null
+        };
+        saveAuthSession(newAuth);
+        return { success: true, role: 'supplier' };
+      } else if (data && data.message) {
+        return { success: false, message: data.message };
+      }
+    } catch (e) {
+      console.warn("Backend verify-otp endpoint unavailable, using client fallback:", e);
+    }
+
+    // Fallback Verification
     if (cleanInputOtp !== expectedOtp && cleanInputOtp !== '1234') {
       return { success: false, message: 'Invalid OTP. Please check and try again.' };
     }
 
     let suppliersList = [];
-    const dbData = localStorage.getItem(AUTH_KEY.replace('auth', 'db'));
-    if (dbData) {
-      try {
-        const parsed = JSON.parse(dbData);
-        suppliersList = parsed.tbl_Supplier || [];
-      } catch (e) {}
+    try {
+      const fetched = await mockApi.getSuppliers();
+      if (fetched && Array.isArray(fetched) && fetched.length > 0) {
+        suppliersList = fetched;
+      }
+    } catch (e) {}
+
+    if (!suppliersList || suppliersList.length === 0) {
+      const dbData = localStorage.getItem(AUTH_KEY.replace('auth', 'db'));
+      if (dbData) {
+        try {
+          const parsed = JSON.parse(dbData);
+          suppliersList = parsed.tbl_Supplier || [];
+        } catch (e) {}
+      }
     }
 
     const matchedSupplier = suppliersList.find(s => {
-      const sPhone = (s.txt_Phone || '').trim().replace(/\D/g, '');
+      const sPhone = (s.txt_Phone || '').trim().replace(/\D/g, '').slice(-10);
       return sPhone && sPhone === cleanPhone;
     });
 
@@ -292,17 +373,20 @@ export const AuthProvider = ({ children }) => {
       return { success: false, message: 'Supplier details not found.' };
     }
 
+    const storeName = matchedSupplier.txt_Store_Name || matchedSupplier.txt_Supplier_Name || 'Supplier';
+    const ownerName = matchedSupplier.txt_Owner_Name || matchedSupplier.txt_Contact_Person || storeName;
+
     const newAuth = {
       isLoggedIn: true,
       role: 'supplier',
       user: {
         id: matchedSupplier.int_Supplier_Id,
         code: matchedSupplier.txt_Supplier_Code || `SUP${matchedSupplier.int_Supplier_Id}`,
-        name: matchedSupplier.txt_Owner_Name || matchedSupplier.txt_Store_Name,
-        company: matchedSupplier.txt_Store_Name,
+        name: ownerName,
+        company: storeName,
         phone: matchedSupplier.txt_Phone,
         email: matchedSupplier.txt_Email || `${cleanPhone}@supplier.com`,
-        roleTitle: `Supplier (${matchedSupplier.txt_Store_Name})`,
+        roleTitle: `Supplier (${storeName})`,
         profileCompleted: matchedSupplier.txt_Profile_Completed === 'Y',
         supplierDetails: matchedSupplier
       },

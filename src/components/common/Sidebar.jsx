@@ -68,26 +68,26 @@ export const Sidebar = ({ currentTab, setCurrentTab }) => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'stores', label: 'Hostel Stores', icon: Building2 },
     { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'requirements', label: 'Store Requirements', icon: Layers },
-    { id: 'quotations', label: 'Quotations', icon: GitCompare },
+    { id: 'requirements', label: 'Hostel Requests', icon: Layers },
+    { id: 'quotations', label: 'Price Quotes', icon: GitCompare },
     { id: 'suppliers', label: 'Suppliers', icon: Truck },
-    { id: 'purchases', label: 'Purchase Orders', icon: ShoppingBag },
+    { id: 'purchases', label: 'Orders', icon: ShoppingBag },
     { id: 'payments', label: 'Bills & Payments', icon: CreditCard },
-    { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 }
+    { id: 'reports', label: 'Reports', icon: BarChart3 }
   ];
 
   const storeNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'raise', label: 'Raise Requirement', icon: PlusCircle },
-    { id: 'history', label: 'Requirement History', icon: History },
-    { id: 'orders', label: 'Purchase Orders', icon: ShoppingBag },
-    { id: 'stock-update', label: 'Confirm & Update Stock', icon: CheckSquare }
+    { id: 'raise', label: 'New Request', icon: PlusCircle },
+    { id: 'history', label: 'Request History', icon: History },
+    { id: 'orders', label: 'Orders', icon: ShoppingBag },
+    { id: 'stock-update', label: 'Update Stock', icon: CheckSquare }
   ];
 
   const supplierNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'open-reqs', label: 'View Requirements', icon: FileText },
+    { id: 'open-reqs', label: 'Open Requests', icon: FileText },
     { id: 'orders', label: 'Received Orders', icon: ShoppingBag },
     { id: 'profile', label: 'My Profile', icon: User }
   ];

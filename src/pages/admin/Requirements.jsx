@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -190,18 +191,18 @@ export const AdminRequirements = ({ currentTab }) => {
 
   const handleAccept = async (reqId) => {
     try {
-      await mockApi.updateRequestStatus(reqId, 'Accepted', adminRemarks || 'Accepted by Admin review');
-      showToast(`Store Requirement #${selectedReq?.txt_Request_No || reqId} ACCEPTED!`, 'success');
+      await apiService.updateRequestStatus(reqId, 'Accepted', adminRemarks || 'Verified & Approved by Admin review');
+      showToast(`Store Requirement #${selectedReq?.txt_Request_No || reqId} Verified & Approved!`, 'success');
       setSelectedReq(null);
       refreshAll();
     } catch (err) {
-      showToast("Error accepting requirement", "error");
+      showToast("Error approving store requirement", "error");
     }
   };
 
   const handleForwardToSuppliers = async (reqId) => {
     try {
-      await mockApi.updateRequestStatus(reqId, 'Open for Quotation', adminRemarks || 'Approved by Admin & forwarded for supplier quotation');
+      await apiService.updateRequestStatus(reqId, 'Open for Quotation', adminRemarks || 'Approved by Admin & forwarded for supplier quotation');
       showToast(`Requirement #${selectedReq?.txt_Request_No || reqId} approved & opened for supplier quotations!`, 'success');
       setSelectedReq(null);
       refreshAll();
@@ -213,8 +214,8 @@ export const AdminRequirements = ({ currentTab }) => {
   const handleReject = async (reqId) => {
     if (window.confirm("Reject this store requirement?")) {
       try {
-        await mockApi.updateRequestStatus(reqId, 'Rejected', adminRemarks || 'Rejected by Admin review');
-        showToast(`Requirement rejected`, 'info');
+        await apiService.updateRequestStatus(reqId, 'Rejected', adminRemarks || 'Rejected by Admin review');
+        showToast(`Requirement rejected by Admin`, 'info');
         setSelectedReq(null);
         refreshAll();
       } catch (err) {
@@ -234,7 +235,7 @@ export const AdminRequirements = ({ currentTab }) => {
       if (conSolStatusFilter === 'ACCEPTED') {
         statusOk = req.txt_Status === 'Accepted' || req.txt_Status === 'Approved' || req.txt_Status === 'Open for Quotation';
       } else if (conSolStatusFilter === 'PENDING') {
-        statusOk = req.txt_Status === 'Pending';
+        statusOk = !req.txt_Status || req.txt_Status.toLowerCase().includes('pending') || req.txt_Status === 'OPEN';
       } else if (conSolStatusFilter === 'REJECTED') {
         statusOk = req.txt_Status === 'Rejected';
       }
@@ -322,7 +323,7 @@ export const AdminRequirements = ({ currentTab }) => {
     if (window.confirm(`Forward consolidated requirements from ${acceptedReqs.length} accepted store requests to suppliers for quotation?`)) {
       try {
         for (const req of acceptedReqs) {
-          await mockApi.updateRequestStatus(req.int_Request_Id, 'Open for Quotation', 'Consolidated batch opened for supplier quotation');
+          await apiService.updateRequestStatus(req.int_Request_Id, 'Open for Quotation', 'Consolidated batch opened for supplier quotation');
         }
         showToast("Consolidated requirement batch opened for supplier quotations!", "success");
         refreshAll();
@@ -333,26 +334,29 @@ export const AdminRequirements = ({ currentTab }) => {
   };
 
   const requestColumns = [
-    { header: 'Req No', accessor: 'txt_Request_No', render: row => <strong style={{ color: 'var(--color-primary)' }}>{row.txt_Request_No}</strong> },
-    { header: 'Hostel Store', accessor: 'store_name', render: row => <strong style={{ color: 'var(--color-text-primary)' }}>{row.store_name}</strong> },
-    { header: 'Request Date', accessor: 'dte_Request_Date' },
-    { header: 'Month / Year', accessor: 'txt_Month', render: row => `${row.txt_Month} ${row.int_Year}` },
-    { header: 'Est. Budget', accessor: 'dec_Budget', render: row => <span style={{ fontWeight: 700 }}>₹{Number(row.dec_Budget || 0).toLocaleString('en-IN')}</span> },
+    { header: 'Req No', accessor: 'txt_Request_No', render: row => <strong style={{ color: 'var(--color-primary)' }}>{row.txt_Request_No || row.txt_Request_Code || `REQ-${row.int_Request_Id}`}</strong> },
+    { header: 'Hostel Store', accessor: 'store_name', render: row => <strong style={{ color: 'var(--color-text-primary)' }}>{row.store_name || row.txt_Store_Name || `Store #${row.int_Store_Id}`}</strong> },
+    { header: 'Request Date', accessor: 'dte_Request_Date', render: row => row.dte_Request_Date ? new Date(row.dte_Request_Date).toISOString().split('T')[0] : 'Today' },
+    { header: 'Month / Year', accessor: 'txt_Month', render: row => `${row.txt_Month || 'August'} ${row.int_Year || 2026}` },
+    { header: 'Est. Budget', accessor: 'dec_Budget', render: row => {
+      const b = Number(row.dec_Budget || row.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || 0) * Number(i.dec_Last_Purchase_Price || 50)), 0) || 0);
+      return <span style={{ fontWeight: 700 }}>₹{b.toLocaleString('en-IN')}</span>;
+    }},
     { header: 'Items Count', accessor: 'items', render: row => `${row.items?.length || 0} Items` },
     { header: 'Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status} /> },
     { header: 'Actions', render: row => (
       <button className="btn btn-primary btn-sm" onClick={() => handleOpenDetail(row)}>
-        <Eye size={14} /> Review & Action
+        <Eye size={14} /> Review Details
       </button>
     )}
   ];
 
   const filteredCatalogItems = (Array.isArray(items) ? items : []).filter(item => {
-    if (!item) return false;
+    const itemCat = item.txt_Category || item.txt_Category_Name || '';
     const matchesSearch = matchesWordPrefix(item.txt_Item_Name, catalogueSearch) ||
                           matchesWordPrefix(item.txt_Item_Code, catalogueSearch) ||
-                          matchesWordPrefix(item.txt_Category, catalogueSearch);
-    const matchesCat = selectedCategoryFilter === 'ALL' || item.txt_Category === selectedCategoryFilter;
+                          matchesWordPrefix(itemCat, catalogueSearch);
+    const matchesCat = selectedCategoryFilter === 'ALL' || itemCat === selectedCategoryFilter || item.txt_Category_Name === selectedCategoryFilter;
     return matchesSearch && matchesCat;
   });
 
@@ -438,7 +442,7 @@ export const AdminRequirements = ({ currentTab }) => {
           </div>
 
           <div style={{ borderLeft: '1px solid var(--color-border)', paddingLeft: '20px' }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>Catalogue Authorized: </span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>Active Items: </span>
             <strong style={{ color: 'var(--color-primary)' }}>{activeValidCount} / {items.length} Items</strong>
           </div>
         </div>
@@ -453,7 +457,7 @@ export const AdminRequirements = ({ currentTab }) => {
           onClick={() => setActiveTab('window')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
-          <Settings size={18} /> Requirement Window & Catalogue
+          <Settings size={18} /> Request Window & Items
         </button>
 
         <button
@@ -461,7 +465,7 @@ export const AdminRequirements = ({ currentTab }) => {
           onClick={() => setActiveTab('requests')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
-          <FileText size={18} /> Store Requirements Received
+          <FileText size={18} /> Received Hostel Requests
           {pendingRequestsCount > 0 && (
             <span style={{
               background: 'var(--color-danger)',
@@ -481,7 +485,7 @@ export const AdminRequirements = ({ currentTab }) => {
           onClick={() => setActiveTab('consolidation')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
-          <Layers size={18} /> Consolidated Product Demands
+          <Layers size={18} /> Total Items Requested
           <span style={{
             background: 'var(--color-primary)',
             color: '#FFFFFF',
@@ -556,10 +560,10 @@ export const AdminRequirements = ({ currentTab }) => {
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button className="btn btn-secondary btn-sm" onClick={handlePrintConsolidatedIndent}>
-                <Printer size={15} /> Print / Export Indent
+                <Printer size={15} /> Print / Export List
               </button>
               <button className="btn btn-primary btn-sm" onClick={handleForwardAllConsolidatedToSuppliers}>
-                <Send size={15} /> Forward to Suppliers for RFQ
+                <Send size={15} /> Send to Suppliers for Quotes
               </button>
             </div>
           </div>
@@ -663,7 +667,7 @@ export const AdminRequirements = ({ currentTab }) => {
           {Math.ceil(consolidatedDemands.length / 5) > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
               <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                Page <strong>{conSolPage}</strong> of <strong>{Math.ceil(consolidatedDemands.length / 5)}</strong> (5 items per page)
+                Page <strong>{conSolPage}</strong> of <strong>{Math.ceil(consolidatedDemands.length / 5)}</strong>
               </div>
 
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -742,23 +746,21 @@ export const AdminRequirements = ({ currentTab }) => {
                 onChange={e => setCatalogueSearch(e.target.value)}
               />
 
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Category:</span>
-                <button
-                  className={`btn btn-sm ${selectedCategoryFilter === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setSelectedCategoryFilter('ALL')}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Category:</span>
+                <select
+                  className="form-select"
+                  style={{ width: '220px' }}
+                  value={selectedCategoryFilter}
+                  onChange={e => setSelectedCategoryFilter(e.target.value)}
                 >
-                  All
-                </button>
-                {(Array.isArray(categories) ? categories : []).map(cat => (
-                  <button
-                    key={cat.int_Category_Id || cat.txt_Category_Name}
-                    className={`btn btn-sm ${selectedCategoryFilter === cat.txt_Category_Name ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setSelectedCategoryFilter(cat.txt_Category_Name)}
-                  >
-                    {cat.txt_Category_Name}
-                  </button>
-                ))}
+                  <option value="ALL">All Categories</option>
+                  {(Array.isArray(categories) ? categories : []).map(cat => (
+                    <option key={cat.int_Category_Id || cat.txt_Category_Name} value={cat.txt_Category_Name}>
+                      {cat.txt_Category_Name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -788,7 +790,7 @@ export const AdminRequirements = ({ currentTab }) => {
                       const isChecked = (periodForm.arr_Active_Item_Ids || []).includes(item.int_Item_Id);
                       const stockQty = (typeof item.int_quantity_in_hand === 'number') ? item.int_quantity_in_hand : (item.int_Stock || 0);
                       const isLowStock = stockQty < 15;
-                      const catName = item.txt_Category && item.txt_Category !== '--' ? item.txt_Category : 'General';
+                      const catName = (item.txt_Category && item.txt_Category !== '--') ? item.txt_Category : (item.txt_Category_Name || item.category || 'General');
                       return (
                         <tr key={item.int_Item_Id} style={{ backgroundColor: isChecked ? 'rgba(2, 132, 199, 0.04)' : 'transparent' }}>
                           <td>
@@ -833,7 +835,7 @@ export const AdminRequirements = ({ currentTab }) => {
             {/* Catalogue Pagination Bar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
               <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                Page <strong>{catPage}</strong> of <strong>{Math.ceil(filteredCatalogItems.length / 5) || 1}</strong> (5 items per page)
+                Page <strong>{catPage}</strong> of <strong>{Math.ceil(filteredCatalogItems.length / 5) || 1}</strong>
               </div>
 
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -1004,22 +1006,24 @@ export const AdminRequirements = ({ currentTab }) => {
         <Modal
           isOpen={true}
           onClose={() => setSelectedReq(null)}
-          title={`Review Requirement: ${selectedReq.txt_Request_No} (${selectedReq.store_name})`}
+          title={`Review Requirement: ${selectedReq.txt_Request_No || selectedReq.txt_Request_Code || `REQ-${selectedReq.int_Request_Id}`} (${selectedReq.store_name || selectedReq.txt_Store_Name || 'Hostel Store'})`}
           maxWidth="750px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', background: 'var(--color-surface-hover)', padding: '12px 16px', borderRadius: '8px' }}>
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Hostel Store</span>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{selectedReq.store_name}</div>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{selectedReq.store_name || selectedReq.txt_Store_Name || 'Hostel Store'}</div>
               </div>
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Estimated Budget</span>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-primary)' }}>₹{Number(selectedReq.dec_Budget).toLocaleString('en-IN')}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
+                  ₹{Number(selectedReq.dec_Budget || selectedReq.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || 0) * Number(i.dec_Last_Purchase_Price || 50)), 0) || 0).toLocaleString('en-IN')}
+                </div>
               </div>
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Current Status</span>
-                <div><StatusBadge status={selectedReq.txt_Status} /></div>
+                <div><StatusBadge status={selectedReq.txt_Status || 'Pending'} /></div>
               </div>
             </div>
 
@@ -1039,25 +1043,33 @@ export const AdminRequirements = ({ currentTab }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedReq.items?.map((item, idx) => (
-                      <tr key={idx}>
-                        <td>{idx + 1}</td>
-                        <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{item.product_code || `PRD-00${item.int_Product_Id}`}</td>
-                        <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.product_name}</td>
-                        <td>
-                          <span className="category-badge">
-                            {item.category || 'General'}
-                          </span>
-                        </td>
-                        <td>{item.brand || 'Standard'}</td>
-                        <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                          {item.dec_Required_Qty} {item.unit}
-                        </td>
-                        <td style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                          {item.txt_Remarks || '—'}
-                        </td>
-                      </tr>
-                    ))}
+                    {(selectedReq.items || []).map((item, idx) => {
+                      const itemCode = item.product_code || item.txt_Item_Code || `PRD-00${item.int_Product_Id || item.int_Item_Id || idx + 1}`;
+                      const itemName = item.product_name || item.txt_Item_Name || `Item #${item.int_Item_Id || idx + 1}`;
+                      const cat = item.category || item.txt_Category || 'General';
+                      const brandName = item.brand || item.txt_Brand || 'Standard';
+                      const qtyVal = item.dec_Required_Qty || item.int_Requested_Quantity || item.quantity || 0;
+                      const unitVal = item.unit || item.txt_Unit_Of_Measurement || item.txt_Unit || 'Pcs';
+                      return (
+                        <tr key={idx}>
+                          <td>{idx + 1}</td>
+                          <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{itemCode}</td>
+                          <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{itemName}</td>
+                          <td>
+                            <span className="category-badge">
+                              {cat}
+                            </span>
+                          </td>
+                          <td>{brandName}</td>
+                          <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                            {qtyVal} {unitVal}
+                          </td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                            {item.txt_Remarks || item.txt_Reason || '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1082,19 +1094,15 @@ export const AdminRequirements = ({ currentTab }) => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
               <button className="btn btn-secondary" onClick={() => setSelectedReq(null)}>Close</button>
-              {selectedReq.txt_Status === 'Pending' && (
-                <>
-                  <button className="btn btn-danger" onClick={() => handleReject(selectedReq.int_Request_Id)}>
-                    <XCircle size={16} /> Reject Request
-                  </button>
-                  <button className="btn btn-success" onClick={() => handleAccept(selectedReq.int_Request_Id)}>
-                    <CheckCircle size={16} /> Accept Request
-                  </button>
-                  <button className="btn btn-primary" onClick={() => handleForwardToSuppliers(selectedReq.int_Request_Id)}>
-                    <Send size={16} /> Accept & Forward for RFQ
-                  </button>
-                </>
-              )}
+              <button className="btn btn-danger" onClick={() => handleReject(selectedReq.int_Request_Id)}>
+                <XCircle size={16} /> Reject Request
+              </button>
+              <button className="btn btn-success" onClick={() => handleAccept(selectedReq.int_Request_Id)}>
+                <CheckCircle size={16} /> Approve Request
+              </button>
+              <button className="btn btn-primary" onClick={() => handleForwardToSuppliers(selectedReq.int_Request_Id)}>
+                <Send size={16} /> Approve & Ask Suppliers for Price Quotes
+              </button>
             </div>
           </div>
         </Modal>
