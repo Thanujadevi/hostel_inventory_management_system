@@ -1,32 +1,31 @@
 :root {
-  /* Primary Palette */
-  --color-primary: #2563EB;
-  --color-primary-hover: #1D4ED8;
-  --color-primary-light: rgba(37, 99, 235, 0.1);
-  --color-primary-glow: rgba(37, 99, 235, 0.25);
+  /* Primary Palette - Refined Executive Light Blue */
+  --color-primary: #0284C7;
+  --color-primary-hover: #0369A1;
+  --color-primary-light: #E0F2FE;
+  --color-primary-glow: rgba(2, 132, 199, 0.2);
   
-  /* Background & Surface */
+  /* Background & Surface - Ultra Crisp Ice Blue & White */
   --color-bg: #F8FAFC;
-  --color-bg-gradient: radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 50%), 
-                        radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%), 
-                        radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%),
+  --color-bg-gradient: radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.06) 0px, transparent 50%), 
+                        radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.05) 0px, transparent 50%), 
                         #F8FAFC;
 
   --color-surface: #FFFFFF;
-  --color-surface-glass: rgba(255, 255, 255, 0.88);
-  --color-surface-hover: #F1F5F9;
+  --color-surface-glass: rgba(255, 255, 255, 0.92);
+  --color-surface-hover: #F0F7FF;
   --color-border: #E2E8F0;
   --color-border-dark: #CBD5E1;
 
-  /* Clean Light Sidebar Palette for Light Mode */
+  /* Clean Light Blue Sidebar Palette */
   --sidebar-bg: #FFFFFF;
   --sidebar-border: #E2E8F0;
   --sidebar-text: #475569;
   --sidebar-text-hover: #0F172A;
-  --sidebar-text-active: #2563EB;
-  --sidebar-hover-bg: #F8FAFC;
-  --sidebar-active-bg: #EFF6FF;
-  --sidebar-active-border: #2563EB;
+  --sidebar-text-active: #0369A1;
+  --sidebar-hover-bg: #F0F7FF;
+  --sidebar-active-bg: #E0F2FE;
+  --sidebar-active-border: #0284C7;
   --sidebar-logo-text: #0F172A;
 
   /* Typography */
@@ -36,36 +35,36 @@
 
   /* Status Tokens */
   --color-success: #10B981;
-  --color-success-bg: #D1FAE5;
+  --color-success-bg: #E6F4EA;
   --color-success-text: #047857;
 
   --color-warning: #F59E0B;
-  --color-warning-bg: #FEF3C7;
+  --color-warning-bg: #FFF8E6;
   --color-warning-text: #B45309;
 
   --color-danger: #EF4444;
   --color-danger-bg: #FEE2E2;
   --color-danger-text: #B91C1C;
 
-  --color-info: #3B82F6;
-  --color-info-bg: #DBEAFE;
-  --color-info-text: #1D4ED8;
+  --color-info: #0284C7;
+  --color-info-bg: #E0F2FE;
+  --color-info-text: #0369A1;
 
   --color-purple: #8B5CF6;
   --color-purple-bg: #F3E8FF;
   --color-purple-text: #6D28D9;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 12px 28px -4px rgba(15, 23, 42, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.06);
+  /* Soft Shadows */
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+  --shadow-md: 0 4px 16px -2px rgba(2, 132, 199, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 12px 30px -4px rgba(2, 132, 199, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
 
   /* Dimensions */
-  --sidebar-width: 260px;
+  --sidebar-width: 264px;
   --topbar-height: 68px;
-  --border-radius: 12px;
+  --border-radius: 14px;
   --border-radius-sm: 8px;
-  --border-radius-lg: 18px;
+  --border-radius-lg: 20px;
 
   /* Fonts */
   --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;

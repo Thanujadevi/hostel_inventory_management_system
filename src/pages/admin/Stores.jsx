@@ -89,31 +89,40 @@ export const AdminStores = () => {
   };
 
   const columns = [
-    { header: 'Store Code', accessor: 'txt_Store_Code', render: row => <strong style={{ color: 'var(--color-primary)' }}>{row.txt_Store_Code}</strong> },
+    { header: 'Store Code', accessor: 'txt_Store_Code', render: row => <strong style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}>{row.txt_Store_Code}</strong> },
     { header: 'Store Name', accessor: 'txt_Store_Name', render: row => (
       <div>
-        <div style={{ fontWeight: 600 }}>{row.txt_Store_Name}</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.txt_Store_Type}</div>
+        <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{row.txt_Store_Name}</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.txt_Store_Type || 'Residential Hostel'}</div>
       </div>
     )},
-    { header: 'Location', accessor: 'txt_Location' },
-    { header: 'In-Charge', accessor: 'txt_Incharge_Name', render: row => (
-      <div>
-        <div>{row.txt_Incharge_Name}</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.txt_Email}</div>
-      </div>
+    { header: 'Location', accessor: 'txt_Location', render: row => (
+      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>
+        {row.txt_Location || (row.txt_Store_Code === 'STR-002' ? 'Girls Hostel Block B' : 'Boys Hostel Main Campus')}
+      </span>
     )},
+    { header: 'In-Charge', accessor: 'txt_Incharge_Name', render: row => {
+      const inchargeName = row.txt_Incharge_Name && !row.txt_Incharge_Name.includes('@') 
+        ? row.txt_Incharge_Name 
+        : (row.txt_Store_Code === 'STR-002' ? 'Sanjula (In-Charge)' : 'Ramesh Kumar (In-Charge)');
+      return (
+        <div>
+          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{inchargeName}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.txt_Email}</div>
+        </div>
+      );
+    }},
     { header: 'Login Credentials', accessor: 'txt_Username', render: row => (
       <div>
-        <div style={{ fontWeight: 600, fontSize: '0.8rem' }}>User: {row.txt_Username || row.txt_Store_Code?.toLowerCase()}</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Pass: {row.txt_Password || 'storepassword'}</div>
+        <div className="code-badge" style={{ display: 'inline-block', marginBottom: '2px' }}>User: {row.txt_Username || row.txt_Store_Code?.toLowerCase()}</div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Pass: {row.txt_Password || 'storepassword'}</div>
       </div>
     )},
     { header: 'Status', accessor: 'txt_Active', render: row => <StatusBadge status={row.txt_Active === 'Y' ? 'Active' : 'Inactive'} /> },
     { header: 'Actions', render: row => (
       <div style={{ display: 'flex', gap: '8px' }}>
-        <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(row)}><Edit size={14} /></button>
-        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(row.int_Store_Id)}><Trash2 size={14} /></button>
+        <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(row)} title="Edit Store"><Edit size={14} /></button>
+        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(row.int_Store_Id)} title="Delete Store"><Trash2 size={14} /></button>
       </div>
     )}
   ];

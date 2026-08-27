@@ -3,16 +3,16 @@ import React from 'react';
 export const Card = ({ children, title, value, icon: Icon, iconBg = 'var(--color-primary-light)', iconColor = 'var(--color-primary)', subtitle, style, className = '' }) => {
   if (children) {
     return (
-      <div className={`card ${className}`} style={{ backgroundColor: 'var(--color-surface)', padding: '24px', borderRadius: '12px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', ...style }}>
+      <div className={`card ${className}`} style={{ backgroundColor: 'var(--color-surface)', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', ...style }}>
         {children}
       </div>
     );
   }
 
   return (
-    <div className={`card card-hover kpi-card ${className}`} style={style}>
+    <div className={`card card-hover kpi-card ${className}`} style={{ backgroundColor: 'var(--color-surface)', borderRadius: '16px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', padding: '22px 24px', ...style }}>
       {Icon && (
-        <div className="kpi-icon" style={{ backgroundColor: iconBg, color: iconColor }}>
+        <div className="kpi-icon" style={{ backgroundColor: iconBg, color: iconColor, width: '50px', height: '50px', borderRadius: '12px' }}>
           <Icon size={24} />
         </div>
       )}

@@ -15,45 +15,30 @@ export const ThemeToggle = () => {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: '36px',
-        height: '36px',
-        borderRadius: '50%',
+        width: '38px',
+        height: '38px',
+        borderRadius: '10px',
         border: '1px solid var(--color-border)',
-        backgroundColor: 'var(--color-surface)',
-        color: 'var(--color-text-primary)',
+        backgroundColor: isDark ? 'rgba(30, 41, 59, 0.8)' : '#F0F7FF',
+        color: isDark ? '#93C5FD' : '#0284C7',
         cursor: 'pointer',
         boxShadow: 'var(--shadow-sm)',
-        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: 'all 0.2s ease',
         outline: 'none',
         userSelect: 'none'
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = 'var(--color-primary)';
-        e.currentTarget.style.transform = 'translateY(-1px)';
-        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+        e.currentTarget.style.transform = 'scale(1.05)';
+        e.currentTarget.style.backgroundColor = isDark ? 'rgba(51, 65, 85, 0.9)' : '#E0F2FE';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = 'var(--color-border)';
-        e.currentTarget.style.transform = 'none';
-        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+        e.currentTarget.style.transform = 'scale(1)';
+        e.currentTarget.style.backgroundColor = isDark ? 'rgba(30, 41, 59, 0.8)' : '#F0F7FF';
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '24px',
-          height: '24px',
-          borderRadius: '50%',
-          backgroundColor: isDark ? '#3B82F6' : '#F59E0B',
-          color: '#FFFFFF',
-          transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s ease',
-          transform: isDark ? 'rotate(360deg)' : 'rotate(0deg)'
-        }}
-      >
-        {isDark ? <Moon size={14} /> : <Sun size={14} />}
-      </div>
+      {isDark ? <Moon size={18} color="#60A5FA" /> : <Sun size={18} color="#0284C7" />}
     </button>
   );
 };
