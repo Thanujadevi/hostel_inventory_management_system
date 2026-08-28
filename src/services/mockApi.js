@@ -379,10 +379,23 @@ export const mockApi = {
   // ITEMS API (tbl_Item & tbl_Store_Stock)
   getItems: async (storeId = null) => {
     const apiRes = await apiFetch('/items');
-    if (apiRes && Array.isArray(apiRes)) return apiRes;
+    if (apiRes && Array.isArray(apiRes)) {
+      const db = getDB();
+      db.tbl_Item = apiRes.map(item => ({
+        ...item,
+        dec_Last_Purchase_Price: Number(item.dec_Last_Purchase_Price !== undefined ? item.dec_Last_Purchase_Price : (item.dbl_Unit_Price || 0)),
+        int_quantity_in_hand: Number(item.int_quantity_in_hand !== undefined ? item.int_quantity_in_hand : (item.int_Current_Stock || 0))
+      }));
+      saveDB(db);
+      return db.tbl_Item;
+    }
     await delay();
     const db = getDB();
-    const items = db.tbl_Item || [];
+    const items = (db.tbl_Item || []).map(item => ({
+      ...item,
+      dec_Last_Purchase_Price: Number(item.dec_Last_Purchase_Price !== undefined ? item.dec_Last_Purchase_Price : (item.dbl_Unit_Price || 0)),
+      int_quantity_in_hand: Number(item.int_quantity_in_hand !== undefined ? item.int_quantity_in_hand : (item.int_Current_Stock || 0))
+    }));
     if (!storeId) return items;
 
     db.tbl_Store_Stock = db.tbl_Store_Stock || {};
@@ -397,26 +410,44 @@ export const mockApi = {
   },
 
   saveItem: async (itemData) => {
-    const apiRes = await apiFetch('/items', { method: 'POST', body: JSON.stringify(itemData) });
-    if (apiRes && Array.isArray(apiRes)) return apiRes;
-    await delay();
+    try {
+      await apiFetch('/items', { method: 'POST', body: JSON.stringify(itemData) });
+    } catch (e) {}
+
+    await delay(50);
     const db = getDB();
+    const priceVal = Number(itemData.dec_Last_Purchase_Price !== undefined ? itemData.dec_Last_Purchase_Price : (itemData.dbl_Unit_Price !== undefined ? itemData.dbl_Unit_Price : (itemData.dbl_Estimated_Price || 0)));
+    const stockVal = Number(itemData.int_quantity_in_hand !== undefined ? itemData.int_quantity_in_hand : (itemData.int_Current_Stock !== undefined ? itemData.int_Current_Stock : (itemData.int_Stock || 0)));
+
     if (itemData.int_Item_Id) {
-      const index = db.tbl_Item.findIndex(i => i.int_Item_Id === itemData.int_Item_Id);
+      const targetId = Number(itemData.int_Item_Id);
+      const index = db.tbl_Item.findIndex(i => Number(i.int_Item_Id) === targetId);
       if (index !== -1) {
         db.tbl_Item[index] = {
           ...db.tbl_Item[index],
-          ...itemData
+          ...itemData,
+          int_Item_Id: targetId,
+          dec_Last_Purchase_Price: priceVal,
+          dbl_Unit_Price: priceVal,
+          dbl_Estimated_Price: priceVal,
+          int_quantity_in_hand: stockVal,
+          int_Current_Stock: stockVal,
+          int_Stock: stockVal
         };
       }
     } else {
-      const newId = Math.max(...db.tbl_Item.map(i => i.int_Item_Id || 0), 0) + 1;
+      const newId = Math.max(...db.tbl_Item.map(i => Number(i.int_Item_Id) || 0), 0) + 1;
       const newItem = {
         ...itemData,
         int_Item_Id: newId,
         txt_Item_Code: itemData.txt_Item_Code || generateItemCode(db.tbl_Item),
         txt_Active: itemData.txt_Active || 'Y',
-        int_quantity_in_hand: Number(itemData.int_quantity_in_hand || 0),
+        dec_Last_Purchase_Price: priceVal,
+        dbl_Unit_Price: priceVal,
+        dbl_Estimated_Price: priceVal,
+        int_quantity_in_hand: stockVal,
+        int_Current_Stock: stockVal,
+        int_Stock: stockVal,
         dte_Created_Date: new Date().toISOString().split('T')[0],
         txt_Created_By: 'ADM001'
       };
@@ -591,12 +622,16 @@ export const mockApi = {
   submitQuotation: async (quotationData, itemsList) => {
     let totalItemsAmt = 0;
     (itemsList || []).forEach(item => {
-      totalItemsAmt += (Number(item.dec_Unit_Price) * Number(item.dec_Available_Qty));
+      totalItemsAmt += (Number(item.dec_Unit_Price) * Number(item.dec_Available_Qty || 1));
     });
+
     const payload = {
-      int_Request_Id: Number(quotationData.int_Request_Id),
-      int_Supplier_Id: Number(quotationData.int_Supplier_Id),
+      int_Request_Id: Number(quotationData.int_Request_Id || 1),
+      int_Supplier_Id: Number(quotationData.int_Supplier_Id || 1),
       dbl_Total_Amount: totalItemsAmt,
+      dec_Total_Amount: totalItemsAmt,
+      dec_Transport_Cost: Number(quotationData.dec_Transport_Cost || 500),
+      int_Delivery_Days: Number(quotationData.int_Delivery_Days || 3),
       txt_Delivery_Days: quotationData.int_Delivery_Days ? `${quotationData.int_Delivery_Days} Days` : '3 Days',
       txt_Payment_Terms: quotationData.txt_Remarks || 'Standard Terms',
       items: (itemsList || []).map(i => ({
@@ -606,31 +641,40 @@ export const mockApi = {
         dbl_Total_Price: (i.dec_Unit_Price || 0) * (i.dec_Available_Qty || 1)
       }))
     };
-    const apiRes = await apiFetch('/quotations', { method: 'POST', body: JSON.stringify(payload) });
-    if (apiRes && apiRes.success) return apiRes;
-    await delay();
+
+    try {
+      await apiFetch('/quotations', { method: 'POST', body: JSON.stringify(payload) });
+    } catch (e) {}
+
+    await delay(50);
     const db = getDB();
-    const newQId = Math.max(...db.tbl_Quotation.map(q => q.int_Quotation_Id || 0), 0) + 1;
+    const newQId = Math.max(...(db.tbl_Quotation || []).map(q => q.int_Quotation_Id || 0), 0) + 1;
 
     const newQuotation = {
       int_Quotation_Id: newQId,
-      txt_Quotation_No: quotationData.txt_Quotation_No || generateQuotationCode(db.tbl_Quotation),
-      int_Request_Id: Number(quotationData.int_Request_Id),
-      int_Supplier_Id: Number(quotationData.int_Supplier_Id),
+      txt_Quotation_No: quotationData.txt_Quotation_No || generateQuotationCode(db.tbl_Quotation || []),
+      int_Request_Id: Number(quotationData.int_Request_Id || 1),
+      int_Supplier_Id: Number(quotationData.int_Supplier_Id || 1),
+      supplier_name: quotationData.supplier_name || 'Apex Traders',
+      txt_Supplier_Name: quotationData.supplier_name || 'Apex Traders',
       dte_Submission_Date: new Date().toISOString().split('T')[0],
       dec_Total_Amount: totalItemsAmt,
-      dec_Transport_Cost: Number(quotationData.dec_Transport_Cost || 0),
+      dbl_Total_Amount: totalItemsAmt,
+      dec_Transport_Cost: Number(quotationData.dec_Transport_Cost || 500),
       int_Delivery_Days: Number(quotationData.int_Delivery_Days || 3),
       txt_Status: 'Submitted',
       txt_Remarks: quotationData.txt_Remarks || ''
     };
 
+    if (!db.tbl_Quotation) db.tbl_Quotation = [];
     db.tbl_Quotation.push(newQuotation);
 
     let nextQItemId = Math.max(...(db.tbl_Quotation_Item || []).map(qi => qi.int_Quotation_Item_Id || 0), 0) + 1;
-    itemsList.forEach(item => {
+    if (!db.tbl_Quotation_Item) db.tbl_Quotation_Item = [];
+
+    (itemsList || []).forEach(item => {
       const uPrice = Number(item.dec_Unit_Price);
-      const qty = Number(item.dec_Available_Qty);
+      const qty = Number(item.dec_Available_Qty || 1);
       db.tbl_Quotation_Item.push({
         int_Quotation_Item_Id: nextQItemId++,
         int_Quotation_Id: newQId,
@@ -642,7 +686,7 @@ export const mockApi = {
     });
 
     saveDB(db);
-    return newQuotation;
+    return db.tbl_Quotation;
   },
 
   // APPROVE QUOTATION & GENERATE PURCHASE ORDER (tbl_Purchase)

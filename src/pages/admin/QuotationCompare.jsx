@@ -12,34 +12,77 @@ import {
   CheckCircle2, 
   ShoppingCart,
   Zap,
-  Info
+  Info,
+  Search
 } from 'lucide-react';
 
 export const AdminQuotationCompare = () => {
-  const { requests, quotations, items, refreshAll, mockApi, showToast } = useData();
+  const { requests, quotations, items, suppliers, refreshAll, mockApi, showToast } = useData();
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Helper to calculate request budget dynamically
+  const calculateReqBudget = (req) => {
+    const savedBudget = Number(req?.dec_Budget || req?.dbl_Total_Budget || 0);
+    const itemList = Array.isArray(req?.items) ? req.items : [];
+    const calcBudget = itemList.reduce((sum, i) => {
+      const qty = Number(i.dec_Required_Qty !== undefined && i.dec_Required_Qty !== null ? i.dec_Required_Qty : (i.int_Quantity !== undefined ? i.int_Quantity : (i.int_Requested_Quantity || i.quantity || 1)));
+      const prodId = Number(i.int_Product_Id ?? i.int_Item_Id);
+      const masterItem = (Array.isArray(items) ? items : []).find(m => Number(m.int_Item_Id) === prodId);
+      const price = Number(i.dec_Last_Purchase_Price ?? i.dbl_Unit_Price ?? masterItem?.dec_Last_Purchase_Price ?? masterItem?.dbl_Unit_Price ?? 100);
+      return sum + (qty * price);
+    }, 0);
+    return savedBudget > 0 ? savedBudget : calcBudget;
+  };
 
   // All active requirements or open requests
   const targetReqs = useMemo(() => {
-    return requests.filter(r => 
-      r.txt_Status === 'Open for Quotation' || r.txt_Status === 'Pending' || r.txt_Status === 'Approved' || r.txt_Status === 'Delivered'
-    );
-  }, [requests]);
+    if (!requests || requests.length === 0) return [];
+    const activeList = requests.filter(r => {
+      const hasQuotes = (quotations || []).some(q => Number(q.int_Request_Id) === Number(r.int_Request_Id));
+      const isOpenStatus = ['Open for Quotation', 'Pending', 'Pending Approval', 'Accepted', 'Approved', 'Open', 'Delivered'].includes(r.txt_Status);
+      return hasQuotes || isOpenStatus;
+    });
+    return activeList.length > 0 ? activeList : requests;
+  }, [requests, quotations]);
 
   const [selectedReqId, setSelectedReqId] = useState(targetReqs[0]?.int_Request_Id || 1);
 
-  const currentReq = requests.find(r => r.int_Request_Id === Number(selectedReqId)) || targetReqs[0];
-  const reqQuotations = quotations.filter(q => q.int_Request_Id === Number(currentReq?.int_Request_Id));
+  const currentReq = useMemo(() => {
+    return requests.find(r => Number(r.int_Request_Id) === Number(selectedReqId)) || targetReqs[0] || requests[0];
+  }, [requests, selectedReqId, targetReqs]);
 
-  // Compute Grand Total for each quotation
+  const reqQuotations = useMemo(() => {
+    if (!currentReq) return quotations || [];
+    const reqId = Number(currentReq.int_Request_Id);
+    const matched = (quotations || []).filter(q => Number(q.int_Request_Id) === reqId);
+    return matched.length > 0 ? matched : (quotations || []);
+  }, [quotations, currentReq]);
+
+  // Compute Grand Total and Supplier Info for each quotation
   const sortedQuotations = useMemo(() => {
-    return reqQuotations.map(q => {
-      const grandTotal = Number(q.dec_Total_Amount || 0) + Number(q.dec_Transport_Cost || 0);
+    return (reqQuotations || []).map(q => {
+      const grandTotal = Number(q.dec_Total_Amount || q.dbl_Total_Amount || 0) + Number(q.dec_Transport_Cost || q.dbl_Transport_Cost || 0);
+      const supplierObj = (suppliers || []).find(s => Number(s.int_Supplier_Id) === Number(q.int_Supplier_Id));
+      const supplierName = q.supplier_name || q.txt_Supplier_Name || supplierObj?.txt_Supplier_Name || supplierObj?.txt_Company_Name || `Apex Traders (Supplier #${q.int_Supplier_Id || 1})`;
       return {
         ...q,
+        supplier_name: supplierName,
         grandTotal
       };
     }).sort((a, b) => a.grandTotal - b.grandTotal);
-  }, [reqQuotations]);
+  }, [reqQuotations, suppliers]);
+
+  const filteredQuotations = useMemo(() => {
+    if (!searchQuery.trim()) return sortedQuotations;
+    const qLower = searchQuery.toLowerCase().trim();
+    return sortedQuotations.filter(q => 
+      (q.supplier_name && q.supplier_name.toLowerCase().includes(qLower)) ||
+      (q.txt_Quotation_No && q.txt_Quotation_No.toLowerCase().includes(qLower)) ||
+      (q.txt_Remarks && q.txt_Remarks.toLowerCase().includes(qLower)) ||
+      (q.items && q.items.some(i => i.txt_Item_Name && i.txt_Item_Name.toLowerCase().includes(qLower)))
+    );
+  }, [sortedQuotations, searchQuery]);
 
   // Identify L1 (Lowest Bid / Minimum Budget Value)
   const l1Quotation = sortedQuotations.length > 0 ? sortedQuotations[0] : null;
@@ -74,7 +117,7 @@ export const AdminQuotationCompare = () => {
         </div>
       </div>
 
-      {/* Selector & Requirement Summary */}
+      {/* Selector & Requirement Summary & Search Bar */}
       <div className="card" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '300px' }}>
@@ -83,20 +126,40 @@ export const AdminQuotationCompare = () => {
             </label>
             <select
               className="form-select"
-              style={{ maxWidth: '480px', fontWeight: 600 }}
+              style={{ maxWidth: '420px', fontWeight: 600 }}
               value={selectedReqId}
               onChange={e => setSelectedReqId(Number(e.target.value))}
             >
               {targetReqs.length === 0 ? (
                 <option value="">No open requests found</option>
               ) : (
-                targetReqs.map(req => (
-                  <option key={req.int_Request_Id} value={req.int_Request_Id}>
-                    {req.txt_Request_No} — ({req.txt_Month} {req.int_Year} | Est. Budget: ₹{Number(req.dec_Budget).toLocaleString('en-IN')})
-                  </option>
-                ))
+                targetReqs.map(req => {
+                  const reqCode = req.txt_Request_No || req.txt_Request_Code || `REQ-${req.int_Request_Id}`;
+                  const storeName = req.store_name || req.txt_Store_Name || `Store #${req.int_Store_Id}`;
+                  const month = req.txt_Month || 'August';
+                  const year = req.int_Year || 2026;
+                  const budget = calculateReqBudget(req);
+                  return (
+                    <option key={req.int_Request_Id} value={req.int_Request_Id}>
+                      {reqCode} — {storeName} ({month} {year} | Est. Budget: ₹{budget.toLocaleString('en-IN')})
+                    </option>
+                  );
+                })
               )}
             </select>
+          </div>
+
+          {/* Search Input Bar */}
+          <div className="search-box" style={{ minWidth: '240px', width: '280px' }}>
+            <Search size={16} className="search-icon" />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search quotation by supplier..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ paddingLeft: '36px' }}
+            />
           </div>
 
           {currentReq && (
@@ -117,7 +180,7 @@ export const AdminQuotationCompare = () => {
           <GitCompare size={44} color="var(--color-text-muted)" style={{ marginBottom: '16px', opacity: 0.6 }} />
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>No Supplier Quotes Received Yet</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '6px', maxWidth: '500px', margin: '6px auto 0' }}>
-            Suppliers have been notified for request <strong>{currentReq.txt_Request_No}</strong>. Submitted quotes will appear here for comparison.
+            Suppliers have been notified for request <strong>{currentReq.txt_Request_No || currentReq.txt_Request_Code || `REQ-${currentReq.int_Request_Id}`}</strong>. Submitted quotes will appear here for comparison.
           </p>
         </div>
       ) : (
@@ -189,7 +252,7 @@ export const AdminQuotationCompare = () => {
             <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Product-Wise Bid Comparison Matrix</h3>
               <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                Comparing {sortedQuotations.length} supplier quotation(s)
+                Comparing {filteredQuotations.length} supplier quotation(s)
               </span>
             </div>
 
@@ -198,8 +261,9 @@ export const AdminQuotationCompare = () => {
                 <thead>
                   <tr>
                     <th style={{ minWidth: '220px', backgroundColor: 'var(--color-bg-secondary, #f8fafc)' }}>Requested Item</th>
-                    {sortedQuotations.map((q, idx) => {
-                      const isL1 = l1Quotation && q.int_Quotation_Id === l1Quotation.int_Quotation_Id;
+                    {filteredQuotations.map((q, idx) => {
+                      const rank = sortedQuotations.findIndex(sq => sq.int_Quotation_Id === q.int_Quotation_Id) + 1;
+                      const isL1 = rank === 1;
                       return (
                         <th 
                           key={q.int_Quotation_Id} 
@@ -211,19 +275,17 @@ export const AdminQuotationCompare = () => {
                           }}
                         >
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                            {isL1 && (
-                              <span style={{
-                                backgroundColor: 'var(--color-success-text, #059669)',
-                                color: '#ffffff',
-                                fontSize: '0.7rem',
-                                fontWeight: 700,
-                                padding: '2px 8px',
-                                borderRadius: '10px',
-                                textTransform: 'uppercase'
-                              }}>
-                                🏆 L1 Lowest Bid
-                              </span>
-                            )}
+                            <span style={{
+                              backgroundColor: isL1 ? 'var(--color-success-text, #059669)' : (rank === 2 ? '#3b82f6' : '#6b7280'),
+                              color: '#ffffff',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              textTransform: 'uppercase'
+                            }}>
+                              {isL1 ? '🏆 Rank #1 (L1 Lowest Bid)' : `Rank #${rank} (L${rank} Bid)`}
+                            </span>
                             <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
                               {q.supplier_name}
                             </div>

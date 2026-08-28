@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -43,7 +44,7 @@ export const AdminInventory = () => {
       txt_Item_Name: '',
       txt_Category: categories[0]?.txt_Category_Name || '',
       txt_Brand: '',
-      txt_Unit: 'Kg',
+      txt_Unit: 'Pcs',
       dec_Last_Purchase_Price: 0,
       txt_Description: '',
       int_quantity_in_hand: 0
@@ -54,7 +55,16 @@ export const AdminInventory = () => {
   const openEditItemModal = (item) => {
     setActiveTab('items');
     setEditingItem(item);
-    setItemFormData({ ...item });
+    setItemFormData({
+      txt_Item_Code: item.txt_Item_Code || '',
+      txt_Item_Name: item.txt_Item_Name || '',
+      txt_Category: item.txt_Category || item.txt_Category_Name || categories[0]?.txt_Category_Name || '',
+      txt_Brand: item.txt_Brand || '',
+      txt_Unit: item.txt_Unit || item.txt_Unit_Of_Measurement || 'Pcs',
+      dec_Last_Purchase_Price: Number(item.dec_Last_Purchase_Price !== undefined ? item.dec_Last_Purchase_Price : (item.dbl_Estimated_Price || 0)),
+      txt_Description: item.txt_Description || item.txt_Specification || '',
+      int_quantity_in_hand: Number(item.int_quantity_in_hand !== undefined ? item.int_quantity_in_hand : (item.int_Current_Stock || item.int_Stock || 0))
+    });
     setIsItemModalOpen(true);
   };
 
@@ -81,10 +91,24 @@ export const AdminInventory = () => {
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     try {
-      await mockApi.saveItem(editingItem ? { ...itemFormData, int_Item_Id: editingItem.int_Item_Id } : itemFormData);
-      showToast(editingItem ? "Item details updated!" : "New item added to inventory master!", "success");
+      const priceVal = Number(itemFormData.dec_Last_Purchase_Price !== undefined ? itemFormData.dec_Last_Purchase_Price : 0);
+      const stockVal = Number(itemFormData.int_quantity_in_hand !== undefined ? itemFormData.int_quantity_in_hand : 0);
+
+      const payload = {
+        ...(editingItem ? { int_Item_Id: editingItem.int_Item_Id } : {}),
+        ...itemFormData,
+        dec_Last_Purchase_Price: priceVal,
+        dbl_Unit_Price: priceVal,
+        dbl_Estimated_Price: priceVal,
+        int_quantity_in_hand: stockVal,
+        int_Current_Stock: stockVal,
+        int_Stock: stockVal
+      };
+
+      await apiService.saveItem(payload);
+      showToast(editingItem ? "Item details updated successfully!" : "New item added to inventory master!", "success");
       setIsItemModalOpen(false);
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       showToast("Error saving item record", "error");
     }
@@ -93,10 +117,11 @@ export const AdminInventory = () => {
   const handleCatSubmit = async (e) => {
     e.preventDefault();
     try {
-      await mockApi.saveCategory(editingCat ? { ...catFormData, int_Category_Id: editingCat.int_Category_Id } : catFormData);
-      showToast(editingCat ? "Category updated!" : "New item category created!", "success");
+      const payload = editingCat ? { ...catFormData, int_Category_Id: editingCat.int_Category_Id } : catFormData;
+      await apiService.saveCategory(payload);
+      showToast(editingCat ? "Category updated successfully!" : "New item category created!", "success");
       setIsCatModalOpen(false);
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       showToast("Error saving category", "error");
     }
@@ -105,9 +130,9 @@ export const AdminInventory = () => {
   const handleDeleteItem = async (itemId) => {
     if (window.confirm("Are you sure you want to remove this item from the catalog?")) {
       try {
-        await mockApi.deleteItem(itemId);
+        await apiService.deleteItem(itemId);
         showToast("Item deleted", "info");
-        refreshAll();
+        await refreshAll();
       } catch (err) {
         showToast("Error deleting item", "error");
       }
@@ -117,9 +142,9 @@ export const AdminInventory = () => {
   const handleDeleteCat = async (catId) => {
     if (window.confirm("Are you sure you want to delete this category?")) {
       try {
-        await mockApi.deleteCategory(catId);
+        await apiService.deleteCategory(catId);
         showToast("Category deleted", "info");
-        refreshAll();
+        await refreshAll();
       } catch (err) {
         showToast("Error deleting category", "error");
       }
@@ -146,9 +171,12 @@ export const AdminInventory = () => {
       );
     }},
     { header: 'Unit', accessor: 'txt_Unit', render: row => <span style={{ color: 'var(--color-text-secondary)' }}>{row.txt_Unit || 'Pcs'}</span> },
-    { header: 'Last Purchase Price', accessor: 'dec_Last_Purchase_Price', render: row => <span style={{ fontWeight: 600 }}>₹{Number(row.dec_Last_Purchase_Price || 0).toFixed(2)}</span> },
+    { header: 'Last Purchase Price', accessor: 'dec_Last_Purchase_Price', render: row => {
+      const price = Number(row.dec_Last_Purchase_Price !== undefined && row.dec_Last_Purchase_Price !== null ? row.dec_Last_Purchase_Price : (row.dbl_Unit_Price !== undefined ? row.dbl_Unit_Price : (row.dbl_Estimated_Price || 0)));
+      return <span style={{ fontWeight: 600 }}>₹{price.toFixed(2)}</span>;
+    }},
     { header: 'Quantity in Hand', accessor: 'int_quantity_in_hand', render: row => {
-      const qty = (typeof row.int_quantity_in_hand === 'number') ? row.int_quantity_in_hand : (row.int_Stock || 0);
+      const qty = Number(row.int_quantity_in_hand !== undefined && row.int_quantity_in_hand !== null ? row.int_quantity_in_hand : (row.int_Current_Stock !== undefined ? row.int_Current_Stock : (row.int_Stock || 0)));
       const isLow = qty < 15;
       return (
         <span style={{ 
@@ -304,7 +332,7 @@ export const AdminInventory = () => {
               <label className="form-label">Est. Unit Price (₹)</label>
               <input
                 type="number"
-                step="0.01"
+                step="5"
                 min="0"
                 className="form-control"
                 required

@@ -8,7 +8,7 @@ import { Eye, History } from 'lucide-react';
 
 export const StoreRequirementHistory = () => {
   const { currentStore } = useAuth();
-  const { requests } = useData();
+  const { requests, items } = useData();
   const [selectedReq, setSelectedReq] = useState(null);
 
   const storeId = currentStore?.id;
@@ -19,8 +19,16 @@ export const StoreRequirementHistory = () => {
     { header: 'Request Date', accessor: 'dte_Request_Date', render: row => row.dte_Request_Date ? new Date(row.dte_Request_Date).toISOString().split('T')[0] : 'Today' },
     { header: 'Month / Year', accessor: 'txt_Month', render: row => `${row.txt_Month || 'August'} ${row.int_Year || 2026}` },
     { header: 'Est. Budget', accessor: 'dec_Budget', render: row => {
-      const b = Number(row.dec_Budget || row.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || 0) * 50), 0) || 0);
-      return <span style={{ fontWeight: 700 }}>₹{b.toLocaleString('en-IN')}</span>;
+      const savedBudget = Number(row.dec_Budget || row.dbl_Total_Budget || 0);
+      const calcBudget = (row.items || []).reduce((sum, i) => {
+        const qty = Number(i.dec_Required_Qty !== undefined && i.dec_Required_Qty !== null ? i.dec_Required_Qty : (i.int_Quantity !== undefined ? i.int_Quantity : (i.int_Requested_Quantity || i.quantity || 1)));
+        const prodId = Number(i.int_Product_Id ?? i.int_Item_Id);
+        const masterItem = (Array.isArray(items) ? items : []).find(m => Number(m.int_Item_Id) === prodId);
+        const price = Number(i.dec_Last_Purchase_Price ?? i.dbl_Unit_Price ?? masterItem?.dec_Last_Purchase_Price ?? masterItem?.dbl_Unit_Price ?? 100);
+        return sum + (qty * price);
+      }, 0);
+      const finalBudget = savedBudget > 0 ? savedBudget : calcBudget;
+      return <span style={{ fontWeight: 700 }}>₹{finalBudget.toLocaleString('en-IN')}</span>;
     }},
     { header: 'Items Count', accessor: 'items', render: row => `${row.items?.length || 0} Items` },
     { header: 'Current Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status || 'Pending'} /> },
@@ -57,7 +65,13 @@ export const StoreRequirementHistory = () => {
               <div style={{ textAlign: 'right' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Budget</span>
                 <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                  ₹{Number(selectedReq.dec_Budget || selectedReq.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || 0) * 50), 0) || 0).toLocaleString('en-IN')}
+                  ₹{(Number(selectedReq.dec_Budget || selectedReq.dbl_Total_Budget || 0) > 0 ? Number(selectedReq.dec_Budget || selectedReq.dbl_Total_Budget) : (selectedReq.items || []).reduce((sum, i) => {
+                    const qty = Number(i.dec_Required_Qty !== undefined && i.dec_Required_Qty !== null ? i.dec_Required_Qty : (i.int_Quantity !== undefined ? i.int_Quantity : (i.int_Requested_Quantity || i.quantity || 1)));
+                    const prodId = Number(i.int_Product_Id ?? i.int_Item_Id);
+                    const masterItem = (Array.isArray(items) ? items : []).find(m => Number(m.int_Item_Id) === prodId);
+                    const price = Number(i.dec_Last_Purchase_Price ?? i.dbl_Unit_Price ?? masterItem?.dec_Last_Purchase_Price ?? masterItem?.dbl_Unit_Price ?? 100);
+                    return sum + (qty * price);
+                  }, 0)).toLocaleString('en-IN')}
                 </div>
               </div>
             </div>

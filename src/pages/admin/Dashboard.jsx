@@ -159,90 +159,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
         </div>
       )}
 
-      {/* Requirement Window Status Widget & Automatic Email Reminders Bar */}
-      <div className="card" style={{ 
-        marginBottom: '24px', 
-        borderLeft: `5px solid ${windowActive ? 'var(--color-success)' : 'var(--color-primary)'}`,
-        background: 'var(--color-surface)',
-        boxShadow: 'var(--shadow-md)',
-        padding: '20px 24px',
-        borderRadius: 'var(--border-radius)'
-      }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flex: 1, minWidth: '320px' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: windowActive ? 'var(--color-success-bg)' : 'var(--color-info-bg)',
-              color: windowActive ? 'var(--color-success-text)' : 'var(--color-info-text)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              {windowActive ? <Unlock size={24} /> : <Lock size={24} />}
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                <span className={`badge ${windowActive ? 'badge-approved' : 'badge-open'}`} style={{ fontWeight: 700 }}>
-                  {windowActive ? 'REQUEST WINDOW OPEN' : 'REQUEST WINDOW CLOSED'}
-                </span>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                  Month: {requirementPeriod?.txt_Month || 'August'} {requirementPeriod?.int_Year || 2026}
-                </span>
-              </div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
-                {requirementPeriod?.txt_Title || 'Monthly Hostel Inventory Requirement Window'}
-              </h3>
-            </div>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ textAlign: 'right', paddingRight: '12px', borderRight: '1px solid var(--color-border)' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Deadline</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: windowActive ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>
-                {requirementPeriod?.dte_Deadline ? new Date(requirementPeriod.dte_Deadline).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
-              </div>
-            </div>
-
-            {/* Send Reminder Emails Button */}
-            <button 
-              className="btn btn-primary btn-sm" 
-              onClick={() => handleTriggerRemindersNow(false)}
-              disabled={loadingReminders}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              title="Triggers deadline check & sends reminder emails to all active hostel store in-charges"
-            >
-              {loadingReminders ? <RefreshCw className="spin" size={14} /> : <Send size={14} />}
-              {loadingReminders ? 'Sending Emails...' : 'Send Reminders'}
-            </button>
-
-            {/* Email Reminders Button */}
-            <button 
-              className="btn btn-secondary btn-sm" 
-              onClick={handleOpenReminderModal}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Mail size={14} /> Reminder Settings
-            </button>
-
-            {windowActive ? (
-              <button className="btn btn-danger btn-sm" onClick={() => togglePeriodStatus('CLOSED')}>
-                <Lock size={14} /> Close Window
-              </button>
-            ) : (
-              <button className="btn btn-success btn-sm" onClick={() => togglePeriodStatus('OPEN')}>
-                <Unlock size={14} /> Open Window
-              </button>
-            )}
-
-            <button className="btn btn-secondary btn-sm" onClick={() => setCurrentTab('requirements')}>
-              <Settings size={14} /> Item List
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* KPI Cards Grid */}
       <div className="kpi-grid">
@@ -280,187 +197,98 @@ export const AdminDashboard = ({ setCurrentTab }) => {
         />
       </div>
 
-      {/* Main Grid Content */}
-      <div className="admin-dashboard-layout">
-        {/* Left Column: Pending Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Action Required: Pending Store Requests */}
-          <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+      {/* Main Grid Content - Summary Metric Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+        
+        {/* Card 1: Hostel Stores Overview */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: '10px' }}>
+                <Building2 size={24} />
+              </div>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Pending Hostel Requests</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                  Requests submitted by hostels waiting for your approval
-                </p>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Hostel Stores Directory</h3>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Campus hostel inventory stores</p>
               </div>
-              <button 
-                className="btn btn-secondary btn-sm"
-                onClick={() => setCurrentTab('requirements:requests')}
-              >
-                View All <ArrowRight size={14} />
-              </button>
             </div>
-
-            {pendingRequests.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                No pending requests at this time.
-              </div>
-            ) : (
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Req No</th>
-                      <th>Hostel Store</th>
-                      <th>Month</th>
-                      <th>Est. Budget</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingRequests.slice(0, 4).map(req => (
-                      <tr key={req.int_Request_Id}>
-                        <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{req.txt_Request_No}</td>
-                        <td>{req.store_name}</td>
-                        <td>{req.txt_Month} {req.int_Year}</td>
-                        <td style={{ fontWeight: 600 }}>₹{Number(req.dec_Budget).toLocaleString('en-IN')}</td>
-                        <td><StatusBadge status={req.txt_Status} /></td>
-                        <td>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => setCurrentTab('requirements:requests')}
-                          >
-                            Review Request
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)' }}>{stores.length}</span>
           </div>
-
-          {/* Quotations Open for Bidding / Comparison */}
-          <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Quotes Ready to Compare</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                  Supplier quotes received and ready for comparison
-                </p>
-              </div>
-              <button 
-                className="btn btn-secondary btn-sm"
-                onClick={() => setCurrentTab('quotations')}
-              >
-                Compare Quotes <ArrowRight size={14} />
-              </button>
-            </div>
-
-            {openQuotations.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                No quotes currently open for evaluation.
-              </div>
-            ) : (
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Req No</th>
-                      <th>Store</th>
-                      <th>Items Requested</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {openQuotations.slice(0, 3).map(req => (
-                      <tr key={req.int_Request_Id}>
-                        <td style={{ fontWeight: 600 }}>{req.txt_Request_No}</td>
-                        <td>{req.store_name}</td>
-                        <td>{req.items?.length || 0} Items</td>
-                        <td><StatusBadge status={req.txt_Status} /></td>
-                        <td>
-                          <button
-                            className="btn btn-success btn-sm"
-                            onClick={() => setCurrentTab('quotations')}
-                          >
-                            Compare Quotes & Order
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            All registered campus stores submit monthly inventory requirement indents and receive stock deliveries.
+          </p>
         </div>
 
-        {/* Right Column: Platform Directory Summary & Low Stock Warnings */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Quick Metrics Card */}
-          <div className="card">
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px' }}>System Summary</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Building2 size={18} color="var(--color-primary)" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Hostel Stores</span>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: '1rem' }}>{stores.length}</span>
+        {/* Card 2: Registered Suppliers Summary */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', backgroundColor: 'rgba(124, 58, 237, 0.1)', color: 'var(--color-purple-text, #7c3aed)', borderRadius: '10px' }}>
+                <Truck size={24} />
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Truck size={18} color="var(--color-purple-text)" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Suppliers</span>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: '1rem' }}>{suppliers.length}</span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Package size={18} color="var(--color-success-text)" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Master Item List</span>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: '1rem' }}>{items.length}</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Approved Suppliers</h3>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Commercial vendor directory</p>
               </div>
             </div>
+            <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-purple-text, #7c3aed)' }}>{suppliers.length}</span>
+          </div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            Empaneled vendors receive competitive unit price quotation invitations and submit bidding rates.
+          </p>
+        </div>
+
+        {/* Card 3: Master Inventory Catalog */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success-text)', borderRadius: '10px' }}>
+                <Package size={24} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Master Item Catalog</h3>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Standardized inventory items</p>
+              </div>
+            </div>
+            <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-success-text)' }}>{items.length}</span>
+          </div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            Catalog containing authorized furniture, electricals, and maintenance items with standard unit rates.
+          </p>
+        </div>
+
+        {/* Card 4: Low Stock Inventory Summary */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning-text)', borderRadius: '10px' }}>
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Low Stock Warnings</h3>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Items below threshold (&lt;15)</p>
+              </div>
+            </div>
+            <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning-text)' }}>{lowStockItems.length}</span>
           </div>
 
-          {/* Low Stock Alerts */}
-          <div className="card">
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-warning-text)' }}>
-              <AlertTriangle size={18} /> Items Running Low
-            </h3>
-            {lowStockItems.length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>All items are sufficiently stocked.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {lowStockItems.map(item => {
-                  const qty = (typeof item.int_quantity_in_hand === 'number') ? item.int_quantity_in_hand : (item.int_Stock || 0);
-                  const catName = item.txt_Category && item.txt_Category !== '--' 
-                    ? item.txt_Category 
-                    : (item.txt_Item_Code === 'ITM-003' ? 'Furniture & Fittings' : item.txt_Item_Code === 'ITM-002' ? 'Electrical Items' : 'Cleaning Supplies');
-                  return (
-                    <div key={item.int_Item_Id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--color-surface-hover)', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{item.txt_Item_Name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Category: {catName}</div>
-                      </div>
-                      <span className="badge badge-pending" style={{ fontWeight: 700, fontSize: '0.8rem', padding: '4px 10px' }}>
-                        {qty} {item.txt_Unit || 'Pcs'} left
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {lowStockItems.length === 0 ? (
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>All catalog items are currently well stocked.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {lowStockItems.slice(0, 3).map(item => {
+                const qty = (typeof item.int_quantity_in_hand === 'number') ? item.int_quantity_in_hand : (item.int_Stock || 0);
+                return (
+                  <div key={item.int_Item_Id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '6px', fontSize: '0.825rem' }}>
+                    <span style={{ fontWeight: 600 }}>{item.txt_Item_Name}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--color-warning-text)' }}>{qty} in hand</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+
       </div>
 
       {/* Gmail & Automated 24-Hour Reminder Configuration Modal */}

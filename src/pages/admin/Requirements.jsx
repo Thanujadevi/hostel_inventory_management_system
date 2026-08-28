@@ -231,13 +231,14 @@ export const AdminRequirements = ({ currentTab }) => {
 
     const targetRequests = safeRequests.filter(req => {
       if (!req) return false;
+      const statusStr = (req.txt_Status || req.status || '').toLowerCase();
       let statusOk = true;
       if (conSolStatusFilter === 'ACCEPTED') {
-        statusOk = req.txt_Status === 'Accepted' || req.txt_Status === 'Approved' || req.txt_Status === 'Open for Quotation';
+        statusOk = statusStr === 'accepted' || statusStr === 'approved' || statusStr.includes('quotation') || statusStr.includes('open for quotation');
       } else if (conSolStatusFilter === 'PENDING') {
-        statusOk = !req.txt_Status || req.txt_Status.toLowerCase().includes('pending') || req.txt_Status === 'OPEN';
+        statusOk = !statusStr || statusStr.includes('pending') || statusStr === 'open';
       } else if (conSolStatusFilter === 'REJECTED') {
-        statusOk = req.txt_Status === 'Rejected';
+        statusOk = statusStr === 'rejected';
       }
 
       let storeOk = true;
@@ -253,31 +254,34 @@ export const AdminRequirements = ({ currentTab }) => {
     targetRequests.forEach(req => {
       const itemList = Array.isArray(req.items) ? req.items : [];
       itemList.forEach(reqItem => {
-        if (!reqItem || reqItem.int_Product_Id === undefined) return;
-        const prodId = Number(reqItem.int_Product_Id);
+        if (!reqItem) return;
+        const prodId = Number(reqItem.int_Product_Id !== undefined && reqItem.int_Product_Id !== null ? reqItem.int_Product_Id : reqItem.int_Item_Id);
+        if (isNaN(prodId) || prodId === 0) return;
+
+        const masterItem = safeItems.find(i => i && Number(i.int_Item_Id) === prodId);
+        const officialUnit = masterItem ? (masterItem.txt_Unit || masterItem.unit || 'Pcs') : (reqItem.unit || reqItem.txt_Unit || 'Pcs');
+        const qty = Number(reqItem.dec_Required_Qty !== undefined && reqItem.dec_Required_Qty !== null ? reqItem.dec_Required_Qty : (reqItem.int_Quantity !== undefined ? reqItem.int_Quantity : (reqItem.int_Requested_Quantity || reqItem.quantity || 0)));
+
         if (!productMap[prodId]) {
-          const masterItem = safeItems.find(i => i && Number(i.int_Item_Id) === prodId);
-          const officialUnit = masterItem ? masterItem.txt_Unit : (reqItem.unit || 'Pcs');
           productMap[prodId] = {
             int_Product_Id: prodId,
-            product_code: masterItem ? masterItem.txt_Item_Code : (reqItem.product_code || `PRD-00${prodId}`),
-            product_name: masterItem ? masterItem.txt_Item_Name : (reqItem.product_name || `Product #${prodId}`),
-            category: masterItem ? masterItem.txt_Category : (reqItem.category || 'General'),
+            product_code: masterItem ? masterItem.txt_Item_Code : (reqItem.product_code || reqItem.txt_Item_Code || `PRD-00${prodId}`),
+            product_name: masterItem ? masterItem.txt_Item_Name : (reqItem.product_name || reqItem.txt_Item_Name || `Product #${prodId}`),
+            category: masterItem ? (masterItem.txt_Category || masterItem.txt_Category_Name || 'General') : (reqItem.category || reqItem.txt_Category || 'General'),
             unit: officialUnit,
-            est_unit_price: masterItem ? Number(masterItem.dec_Last_Purchase_Price || 0) : 0,
-            stock_in_hand: masterItem ? Number(masterItem.int_quantity_in_hand || 0) : 0,
+            est_unit_price: masterItem ? Number(masterItem.dec_Last_Purchase_Price || masterItem.dbl_Unit_Price || 0) : 0,
+            stock_in_hand: masterItem ? Number(masterItem.int_quantity_in_hand !== undefined ? masterItem.int_quantity_in_hand : (masterItem.int_Stock || 0)) : 0,
             total_required_qty: 0,
             store_breakdown: []
           };
         }
 
-        const qty = Number(reqItem.dec_Required_Qty || 0);
         productMap[prodId].total_required_qty += qty;
         productMap[prodId].store_breakdown.push({
           request_id: req.int_Request_Id,
-          request_no: req.txt_Request_No || 'REQ-N/A',
+          request_no: req.txt_Request_No || req.txt_Request_Code || `REQ-${req.int_Request_Id}`,
           store_id: req.int_Store_Id,
-          store_name: req.store_name || 'Hostel Store',
+          store_name: req.store_name || req.txt_Store_Name || `Store #${req.int_Store_Id}`,
           qty: qty,
           unit: productMap[prodId].unit,
           status: req.txt_Status || 'Pending',
@@ -315,17 +319,28 @@ export const AdminRequirements = ({ currentTab }) => {
   };
 
   const handleForwardAllConsolidatedToSuppliers = async () => {
-    const acceptedReqs = (Array.isArray(requests) ? requests : []).filter(r => r && (r.txt_Status === 'Accepted' || r.txt_Status === 'Approved'));
+    const safeRequests = Array.isArray(requests) ? requests : [];
+    const acceptedReqs = safeRequests.filter(r => {
+      if (!r) return false;
+      const s = (r.txt_Status || '').toLowerCase();
+      return s === 'accepted' || s === 'approved';
+    });
+
     if (acceptedReqs.length === 0) {
-      showToast("No Accepted store requests available to forward to suppliers.", "info");
+      const alreadyOpenReqs = safeRequests.filter(r => (r.txt_Status || '').toLowerCase().includes('quotation'));
+      if (alreadyOpenReqs.length > 0) {
+        showToast("Consolidated requirement batch is already open for supplier quotations!", "info");
+      } else {
+        showToast("No accepted store requests available to forward to suppliers. Please approve pending requests first.", "info");
+      }
       return;
     }
-    if (window.confirm(`Forward consolidated requirements from ${acceptedReqs.length} accepted store requests to suppliers for quotation?`)) {
+    if (window.confirm(`Forward consolidated requirements from ${acceptedReqs.length} accepted store request(s) to suppliers for price quotation?`)) {
       try {
         for (const req of acceptedReqs) {
           await apiService.updateRequestStatus(req.int_Request_Id, 'Open for Quotation', 'Consolidated batch opened for supplier quotation');
         }
-        showToast("Consolidated requirement batch opened for supplier quotations!", "success");
+        showToast("Consolidated requirements sent to suppliers for price quotes successfully!", "success");
         refreshAll();
       } catch (err) {
         showToast("Error updating request statuses", "error");
@@ -339,8 +354,17 @@ export const AdminRequirements = ({ currentTab }) => {
     { header: 'Request Date', accessor: 'dte_Request_Date', render: row => row.dte_Request_Date ? new Date(row.dte_Request_Date).toISOString().split('T')[0] : 'Today' },
     { header: 'Month / Year', accessor: 'txt_Month', render: row => `${row.txt_Month || 'August'} ${row.int_Year || 2026}` },
     { header: 'Est. Budget', accessor: 'dec_Budget', render: row => {
-      const b = Number(row.dec_Budget || row.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || 0) * Number(i.dec_Last_Purchase_Price || 50)), 0) || 0);
-      return <span style={{ fontWeight: 700 }}>₹{b.toLocaleString('en-IN')}</span>;
+      const savedBudget = Number(row.dec_Budget || row.dbl_Total_Budget || 0);
+      const itemList = Array.isArray(row.items) ? row.items : [];
+      const calcBudget = itemList.reduce((sum, i) => {
+        const qty = Number(i.dec_Required_Qty !== undefined && i.dec_Required_Qty !== null ? i.dec_Required_Qty : (i.int_Quantity !== undefined ? i.int_Quantity : (i.int_Requested_Quantity || i.quantity || 1)));
+        const prodId = Number(i.int_Product_Id ?? i.int_Item_Id);
+        const masterItem = (Array.isArray(items) ? items : []).find(m => Number(m.int_Item_Id) === prodId);
+        const price = Number(i.dec_Last_Purchase_Price ?? i.dbl_Unit_Price ?? masterItem?.dec_Last_Purchase_Price ?? masterItem?.dbl_Unit_Price ?? 100);
+        return sum + (qty * price);
+      }, 0);
+      const finalBudget = savedBudget > 0 ? savedBudget : calcBudget;
+      return <span style={{ fontWeight: 700 }}>₹{finalBudget.toLocaleString('en-IN')}</span>;
     }},
     { header: 'Items Count', accessor: 'items', render: row => `${row.items?.length || 0} Items` },
     { header: 'Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status} /> },
@@ -525,7 +549,7 @@ export const AdminRequirements = ({ currentTab }) => {
                 value={conSolStatusFilter}
                 onChange={e => setConSolStatusFilter(e.target.value)}
               >
-                <option value="ACCEPTED">Accepted Requests (Default)</option>
+                <option value="ACCEPTED">Accepted Requests</option>
                 <option value="PENDING">Pending Requests</option>
                 <option value="ALL">All Store Requests</option>
               </select>
@@ -1018,7 +1042,13 @@ export const AdminRequirements = ({ currentTab }) => {
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Estimated Budget</span>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
-                  ₹{Number(selectedReq.dec_Budget || selectedReq.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || 0) * Number(i.dec_Last_Purchase_Price || 50)), 0) || 0).toLocaleString('en-IN')}
+                  ₹{(Number(selectedReq.dec_Budget || selectedReq.dbl_Total_Budget || 0) > 0 ? Number(selectedReq.dec_Budget || selectedReq.dbl_Total_Budget) : (selectedReq.items || []).reduce((sum, i) => {
+                    const qty = Number(i.dec_Required_Qty !== undefined && i.dec_Required_Qty !== null ? i.dec_Required_Qty : (i.int_Quantity !== undefined ? i.int_Quantity : (i.int_Requested_Quantity || i.quantity || 1)));
+                    const prodId = Number(i.int_Product_Id ?? i.int_Item_Id);
+                    const masterItem = (Array.isArray(items) ? items : []).find(m => Number(m.int_Item_Id) === prodId);
+                    const price = Number(i.dec_Last_Purchase_Price ?? i.dbl_Unit_Price ?? masterItem?.dec_Last_Purchase_Price ?? masterItem?.dbl_Unit_Price ?? 100);
+                    return sum + (qty * price);
+                  }, 0)).toLocaleString('en-IN')}
                 </div>
               </div>
               <div>
@@ -1099,9 +1129,6 @@ export const AdminRequirements = ({ currentTab }) => {
               </button>
               <button className="btn btn-success" onClick={() => handleAccept(selectedReq.int_Request_Id)}>
                 <CheckCircle size={16} /> Approve Request
-              </button>
-              <button className="btn btn-primary" onClick={() => handleForwardToSuppliers(selectedReq.int_Request_Id)}>
-                <Send size={16} /> Approve & Ask Suppliers for Price Quotes
               </button>
             </div>
           </div>
@@ -1184,80 +1211,132 @@ export const AdminRequirements = ({ currentTab }) => {
         <Modal
           isOpen={isPrintIndentOpen}
           onClose={() => setIsPrintIndentOpen(false)}
-          title="Consolidated Requirement Indent Report"
+          title="Printable Consolidated Requirement Indent Report"
           size="lg"
         >
-          <div className="printable-indent-report" style={{ padding: '16px' }}>
-            {/* Header section with 2-line summary description */}
-            <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid var(--color-border)', paddingBottom: '16px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                Hostel Inventory Management System
-              </h2>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '8px' }}>
-                Consolidated Requirement Procurement Indent Report
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, maxWidth: '650px', margin: '0 auto' }}>
-                Official consolidated inventory procurement demand aggregated across all hostel stores for <strong>{requirementPeriod?.txt_Month || 'August'} {requirementPeriod?.int_Year || 2026}</strong> cycle.<br />
-                Generated on <strong>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} at {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</strong> — Total Budget: <strong>₹{totalConsolidatedBudget.toLocaleString('en-IN')}</strong> across <strong>{totalConsolidatedUnits} total items ({consolidatedDemands.length} products)</strong>.
-              </p>
+          <div className="printable-indent-report" style={{ padding: '20px', background: '#ffffff', color: '#0f172a' }}>
+            {/* Executive College Header with Emblem Logo */}
+            <div style={{ textAlign: 'center', marginBottom: '24px', borderBottom: '2px solid #0284c7', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '10px' }}>
+                {/* College Seal / Logo Badge SVG */}
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  border: '2px solid #0284c7',
+                  flexShrink: 0
+                }}>
+                  <Building2 size={32} color="#FFFFFF" />
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <h1 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', letterSpacing: '0.5px', margin: 0, textTransform: 'uppercase' }}>
+                    National Engineering College
+                  </h1>
+                  <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0284c7', margin: '2px 0 0 0' }}>
+                    Hostel Inventory Management & Requisition System
+                  </h2>
+                  <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '2px 0 0 0' }}>
+                    K.R. Nagar, Kovilpatti - 628 503 | Office of Chief Warden & Hostel Stores
+                  </p>
+                </div>
+              </div>
+
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                marginTop: '14px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '12px',
+                textAlign: 'left'
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>Document Title</span>
+                  <strong style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 800 }}>Consolidated Procurement Indent</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>Hostel Store Scope</span>
+                  <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>
+                    {conSolStoreFilter === 'ALL' ? 'All Hostel Stores' : (stores.find(s => String(s.int_Store_Id) === String(conSolStoreFilter))?.txt_Store_Name || 'Hostel Store')}
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>Requisition Period</span>
+                  <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>{requirementPeriod?.txt_Month || 'August'} {requirementPeriod?.int_Year || 2026}</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>Generated Date & Time</span>
+                  <strong style={{ fontSize: '0.85rem', color: '#0284c7' }}>
+                    {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </strong>
+                </div>
+              </div>
             </div>
 
-            {/* Quick Summary Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', background: 'var(--color-bg-secondary, #f8fafc)', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--color-border)' }}>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Report Date & Time</span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>{new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+            {/* Requisition Summary Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ padding: '10px 14px', background: '#f1f5f9', borderRadius: '6px', borderLeft: '4px solid #0284c7' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>Total Unique Products</span>
+                <strong style={{ fontSize: '1rem', color: '#0f172a' }}>{consolidatedDemands.length} Items</strong>
               </div>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Total Products</span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>{consolidatedDemands.length} Items</strong>
+              <div style={{ padding: '10px 14px', background: '#f1f5f9', borderRadius: '6px', borderLeft: '4px solid #0284c7' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>Total Consolidated Quantity</span>
+                <strong style={{ fontSize: '1rem', color: '#0284c7' }}>{totalConsolidatedUnits} Units</strong>
               </div>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Total Required Quantity</span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>{totalConsolidatedUnits} Units</strong>
+              <div style={{ padding: '10px 14px', background: '#f1f5f9', borderRadius: '6px', borderLeft: '4px solid #16a34a' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>Est. Total Requisition Budget</span>
+                <strong style={{ fontSize: '1rem', color: '#15803d' }}>₹{totalConsolidatedBudget.toLocaleString('en-IN')}</strong>
               </div>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Est. Total Budget</span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-success-text)' }}>₹{totalConsolidatedBudget.toLocaleString('en-IN')}</strong>
+              <div style={{ padding: '10px 14px', background: '#f1f5f9', borderRadius: '6px', borderLeft: '4px solid #64748b' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>Status Filter Applied</span>
+                <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>{conSolStatusFilter === 'ALL' ? 'All Requests' : conSolStatusFilter}</strong>
               </div>
             </div>
 
-            {/* Table */}
+            {/* Consolidated Items Table */}
             <div className="table-container" style={{ marginBottom: '24px' }}>
               <table className="table" style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: 'var(--color-bg-secondary, #f1f5f9)' }}>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center', width: '40px' }}>#</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)' }}>Product Details</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)' }}>Category</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center' }}>Consolidated Qty</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center' }}>Unit</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'right' }}>Est. Unit Price</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'right' }}>Total Budget</th>
+                  <tr style={{ background: '#f1f5f9' }}>
+                    <th style={{ padding: '8px 12px', border: '1px solid #cbd5e1', textAlign: 'center', width: '40px' }}>#</th>
+                    <th style={{ padding: '8px 12px', border: '1px solid #cbd5e1' }}>Product Details</th>
+                    <th style={{ padding: '8px 12px', border: '1px solid #cbd5e1' }}>Category</th>
+                    <th style={{ padding: '8px 12px', border: '1px solid #cbd5e1', textAlign: 'center' }}>Consolidated Demand</th>
+                    <th style={{ padding: '8px 12px', border: '1px solid #cbd5e1', textAlign: 'center' }}>Unit</th>
+                    <th style={{ padding: '8px 12px', border: '1px solid #cbd5e1', textAlign: 'right' }}>Est. Unit Price</th>
+                    <th style={{ padding: '8px 12px', border: '1px solid #cbd5e1', textAlign: 'right' }}>Total Budget</th>
                   </tr>
                 </thead>
                 <tbody>
                   {consolidatedDemands.length === 0 ? (
                     <tr>
-                      <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
+                      <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
                         No product requirements match your selected filters.
                       </td>
                     </tr>
                   ) : (
                     consolidatedDemands.map((prod, index) => (
-                      <tr key={prod.item_id || index}>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center', fontWeight: 600 }}>{index + 1}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)' }}>
-                          <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{prod.product_name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Code: {prod.product_code}</div>
+                      <tr key={prod.int_Product_Id || index}>
+                        <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: 600 }}>{index + 1}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ fontWeight: 700, color: '#0f172a' }}>{prod.product_name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>Code: {prod.product_code}</div>
                         </td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)' }}>{prod.category}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center', fontWeight: 700, color: 'var(--color-primary)' }}>
+                        <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0' }}>{prod.category}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: 800, color: '#0284c7' }}>
                           {prod.total_required_qty}
                         </td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center' }}>{prod.unit}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'right' }}>₹{Number(prod.est_unit_price || 0).toLocaleString('en-IN')}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'right', fontWeight: 700 }}>
+                        <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>{prod.unit}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', textAlign: 'right' }}>₹{Number(prod.est_unit_price || 0).toLocaleString('en-IN')}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 700 }}>
                           ₹{(prod.total_required_qty * prod.est_unit_price).toLocaleString('en-IN')}
                         </td>
                       </tr>
@@ -1265,34 +1344,51 @@ export const AdminRequirements = ({ currentTab }) => {
                   )}
                 </tbody>
                 <tfoot>
-                  <tr style={{ background: 'var(--color-bg-secondary, #f8fafc)', fontWeight: 700 }}>
-                    <td colSpan="3" style={{ padding: '10px 12px', border: '1px solid var(--color-border)', textAlign: 'right' }}>Grand Total:</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid var(--color-border)', textAlign: 'center', color: 'var(--color-primary)', fontSize: '0.9rem' }}>{totalConsolidatedUnits}</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid var(--color-border)' }}>Units</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid var(--color-border)' }}></td>
-                    <td style={{ padding: '10px 12px', border: '1px solid var(--color-border)', textAlign: 'right', color: 'var(--color-success-text)', fontSize: '0.95rem' }}>₹{totalConsolidatedBudget.toLocaleString('en-IN')}</td>
+                  <tr style={{ background: '#f8fafc', fontWeight: 700 }}>
+                    <td colSpan="3" style={{ padding: '10px 12px', border: '1px solid #cbd5e1', textAlign: 'right' }}>Grand Total:</td>
+                    <td style={{ padding: '10px 12px', border: '1px solid #cbd5e1', textAlign: 'center', color: '#0284c7', fontSize: '0.95rem' }}>{totalConsolidatedUnits}</td>
+                    <td style={{ padding: '10px 12px', border: '1px solid #cbd5e1', textAlign: 'center' }}>Units</td>
+                    <td style={{ padding: '10px 12px', border: '1px solid #cbd5e1' }}></td>
+                    <td style={{ padding: '10px 12px', border: '1px solid #cbd5e1', textAlign: 'right', color: '#15803d', fontSize: '0.95rem' }}>₹{totalConsolidatedBudget.toLocaleString('en-IN')}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            {/* Approval / Signatures Block */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '30px', paddingTop: '16px', borderTop: '1px dashed var(--color-border)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+            {/* Official Signatures Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginTop: '40px', paddingTop: '20px', borderTop: '2px solid #e2e8f0', textAlign: 'center' }}>
               <div>
-                <div style={{ minHeight: '36px' }}></div>
-                <div style={{ borderTop: '1px solid var(--color-text-secondary)', paddingTop: '4px', fontWeight: 600 }}>Prepared By (Store Supervisor)</div>
+                <div style={{ minHeight: '48px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <span style={{ fontStyle: 'italic', fontSize: '0.8rem', color: '#94a3b8' }}>[ Store Officer Signature ]</span>
+                </div>
+                <div style={{ borderTop: '1px solid #475569', paddingTop: '6px', fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>
+                  Prepared By
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Store Supervisor / Manager</div>
               </div>
+
               <div>
-                <div style={{ minHeight: '36px' }}></div>
-                <div style={{ borderTop: '1px solid var(--color-text-secondary)', paddingTop: '4px', fontWeight: 600 }}>Verified By (Hostel Warden)</div>
+                <div style={{ minHeight: '48px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <span style={{ fontStyle: 'italic', fontSize: '0.8rem', color: '#94a3b8' }}>[ Warden Signature & Date ]</span>
+                </div>
+                <div style={{ borderTop: '1px solid #475569', paddingTop: '6px', fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>
+                  Verified By
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Hostel Warden</div>
               </div>
+
               <div>
-                <div style={{ minHeight: '36px' }}></div>
-                <div style={{ borderTop: '1px solid var(--color-text-secondary)', paddingTop: '4px', fontWeight: 600 }}>Approved By (Chief Warden / Admin)</div>
+                <div style={{ minHeight: '48px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <span style={{ fontStyle: 'italic', fontSize: '0.8rem', color: '#0284c7', fontWeight: 700 }}>Chief Warden Seal</span>
+                </div>
+                <div style={{ borderTop: '1px solid #475569', paddingTop: '6px', fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>
+                  Approved By
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Chief Warden / Administrator</div>
               </div>
             </div>
 
-            {/* Actions Bar (No Print) */}
+            {/* Modal Actions Bar (Hidden on print) */}
             <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
               <button className="btn btn-secondary" onClick={() => setIsPrintIndentOpen(false)}>Close</button>
               <button className="btn btn-primary" onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

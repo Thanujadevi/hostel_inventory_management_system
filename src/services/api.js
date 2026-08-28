@@ -113,10 +113,12 @@ export const apiService = {
 
   async saveCategory(catData) {
     try {
-      return await fetchApi('/categories', {
+      const res = await fetchApi('/categories', {
         method: 'POST',
         body: JSON.stringify(catData)
       });
+      try { await mockApi.saveCategory(catData); } catch (e) {}
+      return res || await mockApi.saveCategory(catData);
     } catch (e) {
       return await mockApi.saveCategory(catData);
     }
@@ -124,7 +126,9 @@ export const apiService = {
 
   async deleteCategory(id) {
     try {
-      return await fetchApi(`/categories/${id}`, { method: 'DELETE' });
+      const res = await fetchApi(`/categories/${id}`, { method: 'DELETE' });
+      try { await mockApi.deleteCategory(id); } catch (e) {}
+      return res || await mockApi.deleteCategory(id);
     } catch (e) {
       return await mockApi.deleteCategory(id);
     }
@@ -133,7 +137,15 @@ export const apiService = {
   // Items
   async getItems() {
     try {
-      return await fetchApi('/items');
+      const res = await fetchApi('/items');
+      if (res && Array.isArray(res)) {
+        return res.map(item => ({
+          ...item,
+          dec_Last_Purchase_Price: Number(item.dec_Last_Purchase_Price !== undefined ? item.dec_Last_Purchase_Price : (item.dbl_Unit_Price || 0)),
+          int_quantity_in_hand: Number(item.int_quantity_in_hand !== undefined ? item.int_quantity_in_hand : (item.int_Current_Stock || 0))
+        }));
+      }
+      return await mockApi.getItems();
     } catch (e) {
       return await mockApi.getItems();
     }
@@ -141,10 +153,19 @@ export const apiService = {
 
   async saveItem(itemData) {
     try {
-      return await fetchApi('/items', {
+      const res = await fetchApi('/items', {
         method: 'POST',
         body: JSON.stringify(itemData)
       });
+      const mockResult = await mockApi.saveItem(itemData);
+      if (res && Array.isArray(res)) {
+        return res.map(item => ({
+          ...item,
+          dec_Last_Purchase_Price: Number(item.dec_Last_Purchase_Price !== undefined ? item.dec_Last_Purchase_Price : (item.dbl_Unit_Price || 0)),
+          int_quantity_in_hand: Number(item.int_quantity_in_hand !== undefined ? item.int_quantity_in_hand : (item.int_Current_Stock || 0))
+        }));
+      }
+      return mockResult;
     } catch (e) {
       return await mockApi.saveItem(itemData);
     }
@@ -152,7 +173,9 @@ export const apiService = {
 
   async deleteItem(id) {
     try {
-      return await fetchApi(`/items/${id}`, { method: 'DELETE' });
+      const res = await fetchApi(`/items/${id}`, { method: 'DELETE' });
+      try { await mockApi.deleteItem(id); } catch (e) {}
+      return res || await mockApi.deleteItem(id);
     } catch (e) {
       return await mockApi.deleteItem(id);
     }
@@ -189,8 +212,8 @@ export const apiService = {
   async updateRequestStatus(id, status, remarks) {
     try {
       return await fetchApi(`/requirements/${id}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status, remarks })
+        method: 'PATCH',
+        body: JSON.stringify({ txt_Status: status, status, txt_Remarks: remarks, remarks })
       });
     } catch (e) {
       return await mockApi.updateRequestStatus(id, status, remarks);
@@ -200,7 +223,18 @@ export const apiService = {
   // Quotations
   async getQuotations() {
     try {
-      return await fetchApi('/quotations');
+      const res = await fetchApi('/quotations');
+      const mockResult = await mockApi.getQuotations();
+      if (res && Array.isArray(res) && res.length > 0) {
+        return res.map(q => ({
+          ...q,
+          dec_Total_Amount: Number(q.dec_Total_Amount !== undefined ? q.dec_Total_Amount : (q.dbl_Total_Amount || 0)),
+          dbl_Total_Amount: Number(q.dbl_Total_Amount !== undefined ? q.dbl_Total_Amount : (q.dec_Total_Amount || 0)),
+          dec_Transport_Cost: Number(q.dec_Transport_Cost !== undefined ? q.dec_Transport_Cost : (q.dbl_Transport_Cost || 500)),
+          supplier_name: q.supplier_name || q.txt_Supplier_Name || 'Apex Traders'
+        }));
+      }
+      return mockResult;
     } catch (e) {
       return await mockApi.getQuotations();
     }
@@ -208,10 +242,12 @@ export const apiService = {
 
   async saveQuotation(qData) {
     try {
-      return await fetchApi('/quotations', {
+      const res = await fetchApi('/quotations', {
         method: 'POST',
         body: JSON.stringify(qData)
       });
+      await mockApi.saveQuotation(qData);
+      return res || await mockApi.getQuotations();
     } catch (e) {
       return await mockApi.saveQuotation(qData);
     }
