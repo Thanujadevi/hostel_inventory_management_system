@@ -17,7 +17,7 @@ export const RequirementModel = {
       req.int_Year = req.int_Year || 2026;
 
       const [items] = await pool.query(`
-        SELECT ri.*, i.txt_Item_Name, i.txt_Unit_Of_Measurement, i.txt_Item_Code, i.txt_Category, i.txt_Brand, i.dec_Last_Purchase_Price
+        SELECT ri.*, i.txt_Item_Name, i.txt_Unit, i.txt_Item_Code, i.txt_Brand, i.dbl_Unit_Price
         FROM tbl_Request_Item ri
         LEFT JOIN tbl_Item i ON ri.int_Item_Id = i.int_Item_Id
         WHERE ri.int_Request_Id = ?
@@ -25,8 +25,8 @@ export const RequirementModel = {
 
       let totalBudget = 0;
       req.items = items.map(item => {
-        const qty = Number(item.int_Requested_Quantity || item.dec_Required_Qty || item.quantity || 0);
-        const price = Number(item.dec_Last_Purchase_Price || item.price || 50);
+        const qty = Number(item.int_Quantity || item.int_Requested_Quantity || item.dec_Required_Qty || item.quantity || 0);
+        const price = Number(item.dbl_Unit_Price || item.dec_Last_Purchase_Price || item.price || 50);
         totalBudget += qty * price;
 
         return {
@@ -34,9 +34,9 @@ export const RequirementModel = {
           int_Product_Id: item.int_Product_Id || item.int_Item_Id,
           product_code: item.product_code || item.txt_Item_Code || `PRD-00${item.int_Item_Id}`,
           product_name: item.product_name || item.txt_Item_Name || `Product #${item.int_Item_Id}`,
-          category: item.category || item.txt_Category || 'General',
+          category: item.category || 'General',
           brand: item.brand || item.txt_Brand || 'Standard',
-          unit: item.unit || item.txt_Unit_Of_Measurement || 'Pcs',
+          unit: item.unit || item.txt_Unit || 'Pcs',
           dec_Required_Qty: qty,
           int_Requested_Quantity: qty
         };
@@ -63,7 +63,7 @@ export const RequirementModel = {
     req.int_Year = req.int_Year || 2026;
 
     const [items] = await pool.query(`
-      SELECT ri.*, i.txt_Item_Name, i.txt_Unit_Of_Measurement, i.txt_Item_Code, i.txt_Category, i.txt_Brand, i.dec_Last_Purchase_Price
+      SELECT ri.*, i.txt_Item_Name, i.txt_Unit, i.txt_Item_Code, i.txt_Brand, i.dbl_Unit_Price
       FROM tbl_Request_Item ri
       LEFT JOIN tbl_Item i ON ri.int_Item_Id = i.int_Item_Id
       WHERE ri.int_Request_Id = ?
@@ -71,8 +71,8 @@ export const RequirementModel = {
 
     let totalBudget = 0;
     req.items = items.map(item => {
-      const qty = Number(item.int_Requested_Quantity || item.dec_Required_Qty || item.quantity || 0);
-      const price = Number(item.dec_Last_Purchase_Price || item.price || 50);
+      const qty = Number(item.int_Quantity || item.int_Requested_Quantity || item.dec_Required_Qty || item.quantity || 0);
+      const price = Number(item.dbl_Unit_Price || item.dec_Last_Purchase_Price || item.price || 50);
       totalBudget += qty * price;
 
       return {
@@ -80,9 +80,9 @@ export const RequirementModel = {
         int_Product_Id: item.int_Product_Id || item.int_Item_Id,
         product_code: item.product_code || item.txt_Item_Code || `PRD-00${item.int_Item_Id}`,
         product_name: item.product_name || item.txt_Item_Name || `Product #${item.int_Item_Id}`,
-        category: item.category || item.txt_Category || 'General',
+        category: item.category || 'General',
         brand: item.brand || item.txt_Brand || 'Standard',
-        unit: item.unit || item.txt_Unit_Of_Measurement || 'Pcs',
+        unit: item.unit || item.txt_Unit || 'Pcs',
         dec_Required_Qty: qty,
         int_Requested_Quantity: qty
       };
@@ -95,14 +95,16 @@ export const RequirementModel = {
   async create(reqData) {
     const [countRows] = await pool.query('SELECT COUNT(*) as cnt FROM tbl_Inventory_Request');
     const requestCode = reqData.txt_Request_Code || reqData.txt_Request_No || `REQ-${String(countRows[0].cnt + 1).padStart(4, '0')}`;
+    const createdBy = reqData.txt_Created_By || 'Store Incharge';
+    const updatedBy = reqData.txt_Updated_By || createdBy;
 
     const [result] = await pool.query(
       `INSERT INTO tbl_Inventory_Request
-        (txt_Request_Code, int_Store_Id, dte_Request_Date, txt_Status, txt_Remarks, dte_Created_Date, txt_Created_By)
-      VALUES (?, ?, CURDATE(), ?, ?, CURDATE(), ?)`,
+        (txt_Request_Code, int_Store_Id, dte_Request_Date, txt_Status, txt_Remarks, dte_Created_Date, txt_Created_By, dte_Updated_Date, txt_Updated_By)
+      VALUES (?, ?, NOW(), ?, ?, NOW(), ?, NOW(), ?)`,
       [
-        requestCode, reqData.int_Store_Id, reqData.txt_Status || 'Pending',
-        reqData.txt_Remarks || '', reqData.txt_Created_By || 'Store Incharge'
+        requestCode, reqData.int_Store_Id || 1, reqData.txt_Status || 'Pending Approval',
+        reqData.txt_Remarks || '', createdBy, updatedBy
       ]
     );
 
@@ -111,11 +113,11 @@ export const RequirementModel = {
       for (let item of reqData.items) {
         await pool.query(
           `INSERT INTO tbl_Request_Item
-            (int_Request_Id, int_Item_Id, int_Requested_Quantity, txt_Reason, txt_Status)
-          VALUES (?, ?, ?, ?, ?)`,
+            (int_Request_Id, int_Item_Id, int_Quantity)
+          VALUES (?, ?, ?)`,
           [
-            requestId, item.int_Product_Id || item.int_Item_Id, item.dec_Required_Qty || item.int_Requested_Quantity || item.quantity,
-            item.txt_Remarks || item.txt_Reason || item.reason || '', 'Pending'
+            requestId, item.int_Product_Id || item.int_Item_Id,
+            item.dec_Required_Qty || item.int_Requested_Quantity || item.int_Quantity || item.quantity || 1
           ]
         );
       }
@@ -123,12 +125,12 @@ export const RequirementModel = {
     return this.findById(requestId);
   },
 
-  async updateStatus(id, status, remarks) {
+  async updateStatus(id, status, remarks, updatedBy = 'System') {
     await pool.query(
       `UPDATE tbl_Inventory_Request SET 
-        txt_Status = ?, txt_Remarks = ?, dte_Updated_Date = CURDATE()
+        txt_Status = ?, txt_Remarks = ?, dte_Updated_Date = NOW(), txt_Updated_By = ?
       WHERE int_Request_Id = ?`,
-      [status, remarks || '', id]
+      [status, remarks || '', updatedBy, id]
     );
     return this.findById(id);
   }

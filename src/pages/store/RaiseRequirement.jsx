@@ -167,7 +167,9 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
         int_Year: year,
         dec_Budget: calculatedBudget,
         txt_Remarks: remarks,
-        txt_Status: 'Pending'
+        txt_Status: 'Pending Approval',
+        txt_Created_By: user?.name || user?.username || currentStore?.name || 'Store Incharge',
+        txt_Updated_By: user?.name || user?.username || currentStore?.name || 'Store Incharge'
       };
 
       const newReq = await apiService.saveRequest(reqData, reqRows);

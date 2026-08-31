@@ -194,20 +194,10 @@ export const AdminRequirements = ({ currentTab }) => {
       await apiService.updateRequestStatus(reqId, 'Accepted', adminRemarks || 'Verified & Approved by Admin review');
       showToast(`Store Requirement #${selectedReq?.txt_Request_No || reqId} Verified & Approved!`, 'success');
       setSelectedReq(null);
-      refreshAll();
+      await refreshAll();
+      setActiveTab('consolidation');
     } catch (err) {
       showToast("Error approving store requirement", "error");
-    }
-  };
-
-  const handleForwardToSuppliers = async (reqId) => {
-    try {
-      await apiService.updateRequestStatus(reqId, 'Open for Quotation', adminRemarks || 'Approved by Admin & forwarded for supplier quotation');
-      showToast(`Requirement #${selectedReq?.txt_Request_No || reqId} approved & opened for supplier quotations!`, 'success');
-      setSelectedReq(null);
-      refreshAll();
-    } catch (err) {
-      showToast("Error updating requirement status", "error");
     }
   };
 
@@ -253,31 +243,33 @@ export const AdminRequirements = ({ currentTab }) => {
     targetRequests.forEach(req => {
       const itemList = Array.isArray(req.items) ? req.items : [];
       itemList.forEach(reqItem => {
-        if (!reqItem || reqItem.int_Product_Id === undefined) return;
-        const prodId = Number(reqItem.int_Product_Id);
+        if (!reqItem) return;
+        const prodId = Number(reqItem.int_Product_Id || reqItem.int_Item_Id);
+        if (isNaN(prodId) || !prodId) return;
+
         if (!productMap[prodId]) {
           const masterItem = safeItems.find(i => i && Number(i.int_Item_Id) === prodId);
-          const officialUnit = masterItem ? masterItem.txt_Unit : (reqItem.unit || 'Pcs');
+          const officialUnit = masterItem ? masterItem.txt_Unit : (reqItem.unit || reqItem.txt_Unit || 'Pcs');
           productMap[prodId] = {
             int_Product_Id: prodId,
-            product_code: masterItem ? masterItem.txt_Item_Code : (reqItem.product_code || `PRD-00${prodId}`),
-            product_name: masterItem ? masterItem.txt_Item_Name : (reqItem.product_name || `Product #${prodId}`),
-            category: masterItem ? masterItem.txt_Category : (reqItem.category || 'General'),
+            product_code: masterItem ? masterItem.txt_Item_Code : (reqItem.product_code || reqItem.txt_Item_Code || `PRD-00${prodId}`),
+            product_name: masterItem ? masterItem.txt_Item_Name : (reqItem.product_name || reqItem.txt_Item_Name || `Product #${prodId}`),
+            category: masterItem ? (masterItem.txt_Category || masterItem.category) : (reqItem.category || reqItem.txt_Category || 'General'),
             unit: officialUnit,
-            est_unit_price: masterItem ? Number(masterItem.dec_Last_Purchase_Price || 0) : 0,
-            stock_in_hand: masterItem ? Number(masterItem.int_quantity_in_hand || 0) : 0,
+            est_unit_price: masterItem ? Number(masterItem.dec_Last_Purchase_Price || masterItem.dbl_Unit_Price || 0) : 0,
+            stock_in_hand: masterItem ? Number(masterItem.int_quantity_in_hand || masterItem.int_Current_Stock || 0) : 0,
             total_required_qty: 0,
             store_breakdown: []
           };
         }
 
-        const qty = Number(reqItem.dec_Required_Qty || 0);
+        const qty = Number(reqItem.dec_Required_Qty || reqItem.int_Quantity || reqItem.int_Requested_Quantity || reqItem.quantity || 0);
         productMap[prodId].total_required_qty += qty;
         productMap[prodId].store_breakdown.push({
           request_id: req.int_Request_Id,
-          request_no: req.txt_Request_No || 'REQ-N/A',
+          request_no: req.txt_Request_No || req.txt_Request_Code || 'REQ-N/A',
           store_id: req.int_Store_Id,
-          store_name: req.store_name || 'Hostel Store',
+          store_name: req.store_name || req.txt_Store_Name || 'Hostel Store',
           qty: qty,
           unit: productMap[prodId].unit,
           status: req.txt_Status || 'Pending',
@@ -1099,9 +1091,6 @@ export const AdminRequirements = ({ currentTab }) => {
               </button>
               <button className="btn btn-success" onClick={() => handleAccept(selectedReq.int_Request_Id)}>
                 <CheckCircle size={16} /> Approve Request
-              </button>
-              <button className="btn btn-primary" onClick={() => handleForwardToSuppliers(selectedReq.int_Request_Id)}>
-                <Send size={16} /> Approve & Ask Suppliers for Price Quotes
               </button>
             </div>
           </div>

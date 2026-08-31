@@ -365,23 +365,10 @@ export const Login = () => {
         <form onSubmit={handleFormSubmit}>
           {/* Primary Input (Auto-detects Mobile No vs Staff Username) */}
           <div className="form-group" style={{ marginBottom: '18px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ marginBottom: '6px' }}>
               <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem', margin: 0 }}>
                 Username or Supplier Mobile Number
               </label>
-              {loginInput.trim().length > 0 && (
-                <span style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  backgroundColor: isMobile ? '#dbeafe' : 'var(--color-primary-light)',
-                  color: isMobile ? '#1e40af' : 'var(--color-primary)',
-                  transition: 'all 0.2s ease'
-                }}>
-                  {isMobile ? 'Supplier (Mobile OTP)' : 'Admin / Store (Username)'}
-                </span>
-              )}
             </div>
 
             <div className="login-input-wrapper">

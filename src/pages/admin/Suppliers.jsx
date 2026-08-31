@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -8,6 +10,9 @@ import { generateSupplierCode } from '../../utils/codeGenerator';
 
 export const AdminSuppliers = () => {
   const { suppliers, refreshAll, mockApi, showToast } = useData();
+  const { user } = useAuth();
+  const activeUser = user?.name || user?.username || 'Chief Warden / Admin';
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
 
@@ -35,21 +40,26 @@ export const AdminSuppliers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await mockApi.saveSupplier(editingSupplier ? { ...formData, int_Supplier_Id: editingSupplier.int_Supplier_Id } : formData);
-      showToast(editingSupplier ? "Supplier details updated!" : "New supplier registered successfully!", "success");
+      const payload = {
+        ...formData,
+        txt_Created_By: activeUser,
+        txt_Updated_By: activeUser
+      };
+      await apiService.saveSupplier(editingSupplier ? { ...payload, int_Supplier_Id: editingSupplier.int_Supplier_Id } : payload);
+      showToast(editingSupplier ? "Supplier updated successfully!" : "New supplier onboarded successfully!", "success");
       setIsModalOpen(false);
-      refreshAll();
+      await refreshAll();
     } catch (err) {
-      showToast("Error saving supplier profile", "error");
+      showToast("Failed to save supplier record", "error");
     }
   };
 
   const handleDelete = async (supplierId) => {
-    if (window.confirm("Are you sure you want to remove this supplier from the directory?")) {
+    if (window.confirm("Are you sure you want to delete this supplier?")) {
       try {
-        await mockApi.deleteSupplier(supplierId);
-        showToast("Supplier profile removed", "info");
-        refreshAll();
+        await apiService.deleteSupplier(supplierId);
+        showToast("Supplier deleted", "info");
+        await refreshAll();
       } catch (err) {
         showToast("Error removing supplier", "error");
       }

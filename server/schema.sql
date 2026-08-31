@@ -132,7 +132,7 @@ INSERT IGNORE INTO tbl_Item
 VALUES
 (1, 'ITM-001', 'Floor Cleaner 5L', 1, 'Cans', 5, 25, 450.00, 'Active', CURDATE(), 'System'),
 (2, 'ITM-002', 'LED Tube Light 20W', 2, 'Pcs', 20, 50, 220.00, 'Active', CURDATE(), 'System'),
-(3, 'ITM-003', 'Study Desk Chair', 3, 'Pcs', 10, 8, 1500.00, 'Active', CURDATE(), 'System');
+(3, 'ITM-003', 'Study Desk Chair', 3, 'Pcs', 10, 0, 1500.00, 'Active', CURDATE(), 'System');
 
 
 -- 6. Store Stock (Per-store stock levels)

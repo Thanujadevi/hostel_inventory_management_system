@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { CheckSquare, PackageCheck, AlertCircle, ArrowRight, Star } from 'lucide-react';
 
@@ -33,6 +34,9 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
     }));
   };
 
+  const { user } = useAuth();
+  const activeUser = user?.name || user?.username || currentStore?.name || 'Store In-Charge';
+
   const handleConfirmDelivery = async () => {
     if (!currentPO) return;
     
@@ -47,14 +51,34 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
     }
 
     try {
+      // Update each delivered item's current stock level in MySQL DB
+      if (linkedReq?.items) {
+        for (const item of linkedReq.items) {
+          const recQty = Number(finalMap[item.int_Product_Id] || item.dec_Required_Qty || 0);
+          const catalogItem = storeItems.find(i => i.int_Item_Id === item.int_Product_Id);
+          const currentStock = Number(catalogItem?.int_Current_Stock || catalogItem?.int_quantity_in_hand || 0);
+          const newStock = currentStock + recQty;
+
+          if (item.int_Product_Id) {
+            await apiService.saveItem({
+              int_Item_Id: item.int_Product_Id,
+              int_Current_Stock: newStock,
+              int_quantity_in_hand: newStock,
+              txt_Updated_By: activeUser
+            });
+          }
+        }
+      }
+
       await mockApi.receiveStoreDelivery(currentPO.int_Purchase_Id, finalMap, receiptRemarks || 'Physical stock verified by store in-charge');
       if (currentPO.supplier_name && supplierRating > 0 && mockApi.rateSupplier) {
         await mockApi.rateSupplier(currentPO.supplier_name, supplierRating);
       }
       showToast(`Stock successfully verified & updated in ${currentStore?.name || 'Store'} inventory!`, 'success');
-      refreshAll();
+      await refreshAll();
       setCurrentTab('inventory');
     } catch (err) {
+      console.error("Error updating stock:", err);
       showToast("Error updating stock quantity", "error");
     }
   };

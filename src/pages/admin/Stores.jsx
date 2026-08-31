@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -8,6 +10,9 @@ import { generateStoreCode } from '../../utils/codeGenerator';
 
 export const AdminStores = () => {
   const { stores, refreshAll, mockApi, showToast } = useData();
+  const { user } = useAuth();
+  const activeUser = user?.name || user?.username || 'Chief Warden / Admin';
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStore, setEditingStore] = useState(null);
 
@@ -64,14 +69,19 @@ export const AdminStores = () => {
     try {
       const payload = {
         ...formData,
+        txt_Campus: formData.txt_Location,
+        txt_Incharge: formData.txt_Incharge_Name,
         txt_Active: formData.txt_Active || 'Y',
-        txt_Password: formData.txt_Password || 'storepassword'
+        txt_Password: formData.txt_Password || 'storepassword',
+        txt_Created_By: activeUser,
+        txt_Updated_By: activeUser
       };
-      await mockApi.saveStore(editingStore ? { ...payload, int_Store_Id: editingStore.int_Store_Id } : payload);
+      await apiService.saveStore(editingStore ? { ...payload, int_Store_Id: editingStore.int_Store_Id } : payload);
       showToast(editingStore ? "Store updated successfully!" : "New store registered successfully! Active & login enabled.", "success");
       setIsModalOpen(false);
-      refreshAll();
+      await refreshAll();
     } catch (err) {
+      console.error("Error saving store:", err);
       showToast("Failed to save store record", "error");
     }
   };
@@ -79,9 +89,9 @@ export const AdminStores = () => {
   const handleDelete = async (storeId) => {
     if (window.confirm("Are you sure you want to delete this hostel store?")) {
       try {
-        await mockApi.deleteStore(storeId);
+        await apiService.deleteStore(storeId);
         showToast("Store record deleted", "info");
-        refreshAll();
+        await refreshAll();
       } catch (err) {
         showToast("Error deleting store", "error");
       }
@@ -101,15 +111,13 @@ export const AdminStores = () => {
     {
       header: 'Location', accessor: 'txt_Location', render: row => (
         <span style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>
-          {row.txt_Location || (row.txt_Store_Code === 'STR-002' ? 'Girls Hostel Block B' : 'Boys Hostel Main Campus')}
+          {row.txt_Location || row.txt_Campus || 'Main Campus'}
         </span>
       )
     },
     {
       header: 'In-Charge', accessor: 'txt_Incharge_Name', render: row => {
-        const inchargeName = row.txt_Incharge_Name && !row.txt_Incharge_Name.includes('@')
-          ? row.txt_Incharge_Name
-          : (row.txt_Store_Code === 'STR-002' ? 'Sanjula ' : 'Ramesh Kumar ');
+        const inchargeName = row.txt_Incharge_Name || row.txt_Incharge || 'Store In-Charge';
         return (
           <div>
             <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{inchargeName}</div>

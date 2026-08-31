@@ -38,7 +38,7 @@ export const DataProvider = ({ children }) => {
         apiService.getPurchases(),
         apiService.getPayments(),
         apiService.getAdmins(),
-        mockApi.getRequirementPeriod()
+        apiService.getRequirementPeriod()
       ]);
       setStores(sData || []);
       setSuppliers(supData || []);
@@ -59,12 +59,20 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    try {
+      localStorage.removeItem('hostel_ims_db_v8');
+      localStorage.removeItem('hostel_ims_db_v7');
+      localStorage.removeItem('hostel_ims_db_v6');
+      localStorage.removeItem('hostel_ims_db_v5');
+      localStorage.removeItem('hostel_ims_db_v4');
+      localStorage.removeItem('hostel_ims_db_v3');
+    } catch (e) {}
     refreshAll();
   }, [refreshAll]);
 
   const saveRequirementPeriod = async (periodData) => {
     try {
-      const updated = await mockApi.saveRequirementPeriod(periodData);
+      const updated = await apiService.saveRequirementPeriod(periodData);
       setRequirementPeriod(updated);
       showToast("Requirement Period settings updated successfully!", "success");
       return updated;
@@ -75,7 +83,7 @@ export const DataProvider = ({ children }) => {
 
   const togglePeriodStatus = async (status) => {
     try {
-      const updated = await mockApi.togglePeriodStatus(status);
+      const updated = await apiService.toggleRequirementPeriod(status);
       setRequirementPeriod(updated);
       showToast(`Requirement raising period is now ${status === 'OPEN' ? 'OPEN' : 'CLOSED'}`, status === 'OPEN' ? 'success' : 'info');
       return updated;
@@ -108,7 +116,7 @@ export const DataProvider = ({ children }) => {
       ...item,
       int_quantity_in_hand: storeStockMap[item.int_Item_Id] !== undefined
         ? Number(storeStockMap[item.int_Item_Id])
-        : Number(item.int_quantity_in_hand || 0)
+        : Number(item.int_quantity_in_hand || item.int_Current_Stock || 0)
     }));
   }, [items]);
 
@@ -140,6 +148,7 @@ export const DataProvider = ({ children }) => {
       showToast,
       refreshAll,
       resetDatabase,
+      apiService,
       mockApi
     }}>
       {children}

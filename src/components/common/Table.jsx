@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { useData } from '../../context/DataContext';
 import { matchesWordPrefix } from '../../utils/searchUtils';
 
 export const Table = ({ 
   columns = [], 
   data = [], 
+  isLoading = false,
   searchPlaceholder = "Search records...", 
   emptyMessage = "No matches found",
   pageSize = 5,
   showSearch = true 
 }) => {
+  const dataContext = useData();
+  const contextLoading = dataContext?.loading || false;
+  const isDataLoading = isLoading || contextLoading;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -65,7 +71,16 @@ export const Table = ({
             </tr>
           </thead>
           <tbody>
-            {paginatedData.length === 0 ? (
+            {isDataLoading && safeData.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-secondary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                    <Loader2 size={18} className="spin-animation" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-primary)' }} />
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>Loading records from database...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : paginatedData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} style={{ textAlign: 'center', padding: '36px 20px', color: 'var(--color-text-secondary)' }}>
                   <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>{emptyMessage}</div>

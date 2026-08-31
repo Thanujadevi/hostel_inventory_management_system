@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -8,6 +10,9 @@ import { generatePaymentCode } from '../../utils/codeGenerator';
 
 export const AdminPayments = () => {
   const { payments, purchases, refreshAll, mockApi, showToast } = useData();
+  const { user } = useAuth();
+  const activeUser = user?.name || user?.username || 'Chief Warden / Admin';
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -46,10 +51,17 @@ export const AdminPayments = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await mockApi.recordPayment(formData);
+      const payload = {
+        ...formData,
+        dbl_Amount: formData.dec_Payment_Amount,
+        txt_Transaction_Ref: formData.txt_Transaction_Id,
+        txt_Created_By: activeUser,
+        txt_Updated_By: activeUser
+      };
+      await apiService.savePayment(payload);
       showToast("Payment record saved successfully!", "success");
       setIsModalOpen(false);
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       showToast("Error recording payment", "error");
     }
@@ -125,11 +137,17 @@ export const AdminPayments = () => {
               <label className="form-label">Payment Amount (₹)</label>
               <input
                 type="number"
-                step="0.01"
+                step="any"
+                min="0"
                 className="form-control"
                 required
-                value={formData.dec_Payment_Amount}
-                onChange={e => setFormData({ ...formData, dec_Payment_Amount: Number(e.target.value) })}
+                placeholder="0"
+                value={formData.dec_Payment_Amount ?? ''}
+                onFocus={e => e.target.select()}
+                onChange={e => {
+                  const val = e.target.value;
+                  setFormData({ ...formData, dec_Payment_Amount: val === '' ? '' : Number(val) });
+                }}
               />
             </div>
             <div className="form-group">
