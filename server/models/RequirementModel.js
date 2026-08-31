@@ -17,7 +17,7 @@ export const RequirementModel = {
       req.int_Year = req.int_Year || 2026;
 
       const [items] = await pool.query(`
-        SELECT ri.*, i.txt_Item_Name, i.txt_Unit, i.txt_Item_Code, i.txt_Brand, i.dbl_Unit_Price
+        SELECT ri.*, i.txt_Item_Name, i.txt_Unit, i.txt_Item_Code, 'Standard' AS txt_Brand, i.dbl_Unit_Price
         FROM tbl_Request_Item ri
         LEFT JOIN tbl_Item i ON ri.int_Item_Id = i.int_Item_Id
         WHERE ri.int_Request_Id = ?
@@ -63,7 +63,7 @@ export const RequirementModel = {
     req.int_Year = req.int_Year || 2026;
 
     const [items] = await pool.query(`
-      SELECT ri.*, i.txt_Item_Name, i.txt_Unit, i.txt_Item_Code, i.txt_Brand, i.dbl_Unit_Price
+      SELECT ri.*, i.txt_Item_Name, i.txt_Unit, i.txt_Item_Code, 'Standard' AS txt_Brand, i.dbl_Unit_Price
       FROM tbl_Request_Item ri
       LEFT JOIN tbl_Item i ON ri.int_Item_Id = i.int_Item_Id
       WHERE ri.int_Request_Id = ?
@@ -93,33 +93,93 @@ export const RequirementModel = {
   },
 
   async create(reqData) {
-    const [countRows] = await pool.query('SELECT COUNT(*) as cnt FROM tbl_Inventory_Request');
-    const requestCode = reqData.txt_Request_Code || reqData.txt_Request_No || `REQ-${String(countRows[0].cnt + 1).padStart(4, '0')}`;
     const createdBy = reqData.txt_Created_By || 'Store Incharge';
     const updatedBy = reqData.txt_Updated_By || createdBy;
 
-    const [result] = await pool.query(
-      `INSERT INTO tbl_Inventory_Request
-        (txt_Request_Code, int_Store_Id, dte_Request_Date, txt_Status, txt_Remarks, dte_Created_Date, txt_Created_By, dte_Updated_Date, txt_Updated_By)
-      VALUES (?, ?, NOW(), ?, ?, NOW(), ?, NOW(), ?)`,
-      [
-        requestCode, reqData.int_Store_Id || 1, reqData.txt_Status || 'Pending Approval',
-        reqData.txt_Remarks || '', createdBy, updatedBy
-      ]
+    let storeId = Number(reqData.int_Store_Id || 1);
+    const [storeCheck] = await pool.query('SELECT int_Store_Id FROM tbl_Store WHERE int_Store_Id = ?', [storeId]);
+    if (storeCheck.length === 0) {
+      const [firstStore] = await pool.query('SELECT int_Store_Id FROM tbl_Store LIMIT 1');
+      if (firstStore.length > 0) {
+        storeId = firstStore[0].int_Store_Id;
+      }
+    }
+
+    // Calculate total budget for this store request
+    let calculatedBudget = Number(reqData.dec_Budget || 0);
+    if (reqData.items && Array.isArray(reqData.items)) {
+      let sum = 0;
+      for (let item of reqData.items) {
+        const itemId = Number(item.int_Product_Id || item.int_Item_Id);
+        const qty = Number(item.dec_Required_Qty || item.int_Requested_Quantity || item.int_Quantity || item.quantity || 1);
+        const [priceRows] = await pool.query('SELECT dbl_Unit_Price FROM tbl_Item WHERE int_Item_Id = ?', [itemId]);
+        const price = priceRows.length > 0 ? Number(priceRows[0].dbl_Unit_Price || 0) : 0;
+        sum += qty * price;
+      }
+      if (sum > 0) calculatedBudget = sum;
+    }
+
+    // Check if an existing Pending store request exists for this Store
+    const [existingStoreReqs] = await pool.query(
+      `SELECT int_Request_Id, txt_Request_Code FROM tbl_Inventory_Request 
+       WHERE int_Store_Id = ? AND (txt_Status = 'Pending Approval' OR txt_Status = 'Pending') 
+       ORDER BY int_Request_Id DESC LIMIT 1`,
+      [storeId]
     );
 
-    const requestId = result.insertId;
+    let requestId;
+    let requestCode;
+
+    if (existingStoreReqs.length > 0) {
+      // Consolidate into existing single store request
+      requestId = existingStoreReqs[0].int_Request_Id;
+      requestCode = existingStoreReqs[0].txt_Request_Code;
+
+      await pool.query(
+        `UPDATE tbl_Inventory_Request SET 
+          dec_Budget = ?, 
+          txt_Remarks = ?, 
+          txt_Status = 'Pending Approval',
+          dte_Updated_Date = NOW(), 
+          txt_Updated_By = ?
+        WHERE int_Request_Id = ?`,
+        [calculatedBudget, reqData.txt_Remarks || '', updatedBy, requestId]
+      );
+
+      // Clear existing line items to replace with updated store manifest
+      await pool.query('DELETE FROM tbl_Request_Item WHERE int_Request_Id = ?', [requestId]);
+    } else {
+      // Create new single store request
+      const [countRows] = await pool.query('SELECT COUNT(*) as cnt FROM tbl_Inventory_Request');
+      requestCode = reqData.txt_Request_Code || reqData.txt_Request_No || `REQ-${String(countRows[0].cnt + 1).padStart(4, '0')}`;
+
+      const [result] = await pool.query(
+        `INSERT INTO tbl_Inventory_Request
+          (txt_Request_Code, int_Store_Id, dec_Budget, txt_Month, int_Year, dte_Request_Date, txt_Status, txt_Remarks, dte_Created_Date, txt_Created_By, dte_Updated_Date, txt_Updated_By)
+        VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, NOW(), ?, NOW(), ?)`,
+        [
+          requestCode, storeId, calculatedBudget, reqData.txt_Month || 'August', reqData.int_Year || 2026,
+          reqData.txt_Status || 'Pending Approval', reqData.txt_Remarks || '', createdBy, updatedBy
+        ]
+      );
+      requestId = result.insertId;
+    }
+
+    // Insert item manifest rows
     if (reqData.items && Array.isArray(reqData.items)) {
       for (let item of reqData.items) {
-        await pool.query(
-          `INSERT INTO tbl_Request_Item
-            (int_Request_Id, int_Item_Id, int_Quantity)
-          VALUES (?, ?, ?)`,
-          [
-            requestId, item.int_Product_Id || item.int_Item_Id,
-            item.dec_Required_Qty || item.int_Requested_Quantity || item.int_Quantity || item.quantity || 1
-          ]
-        );
+        const itemId = Number(item.int_Product_Id || item.int_Item_Id);
+        const qty = Number(item.dec_Required_Qty || item.int_Requested_Quantity || item.int_Quantity || item.quantity || 1);
+
+        const [itemCheck] = await pool.query('SELECT int_Item_Id FROM tbl_Item WHERE int_Item_Id = ?', [itemId]);
+        if (itemCheck.length > 0) {
+          await pool.query(
+            `INSERT INTO tbl_Request_Item
+              (int_Request_Id, int_Item_Id, int_Quantity)
+            VALUES (?, ?, ?)`,
+            [requestId, itemId, qty]
+          );
+        }
       }
     }
     return this.findById(requestId);

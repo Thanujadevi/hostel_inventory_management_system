@@ -77,9 +77,9 @@ export const StoreInventory = ({ setCurrentTab }) => {
             onChange={e => setSelectedCategory(e.target.value)}
           >
             <option value="All">All Categories ({storeItems.length})</option>
-            {categories.map(c => (
-              <option key={c.int_Category_Id} value={c.txt_Category_Name}>
-                {c.txt_Category_Name}
+            {Array.from(new Set(categories.map(c => c.txt_Category_Name).filter(Boolean))).map(catName => (
+              <option key={catName} value={catName}>
+                {catName}
               </option>
             ))}
           </select>

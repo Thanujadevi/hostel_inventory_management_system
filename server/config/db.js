@@ -30,12 +30,18 @@ async function autoInitDatabase() {
     await initConn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\`;`);
     await initConn.query(`USE \`${database}\`;`);
 
-    // Schema file is located in server/schema.sql
-    const schemaPath = path.join(__dirname, '..', 'schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      const sqlContent = fs.readFileSync(schemaPath, 'utf8');
-      await initConn.query(sqlContent);
-      console.log(`✅ MySQL Database '${database}' auto-initialized with schema successfully.`);
+    // Check if database tables are already initialized
+    const [existingTables] = await initConn.query("SHOW TABLES LIKE 'tbl_Admin'");
+    if (existingTables.length === 0) {
+      // Schema file is located in server/schema.sql
+      const schemaPath = path.join(__dirname, '..', 'schema.sql');
+      if (fs.existsSync(schemaPath)) {
+        const sqlContent = fs.readFileSync(schemaPath, 'utf8');
+        await initConn.query(sqlContent);
+        console.log(`✅ MySQL Database '${database}' initialized with schema for the first time.`);
+      }
+    } else {
+      console.log(`ℹ️ MySQL Database '${database}' already initialized. Skipping seed re-insertion.`);
     }
 
     // Auto-migration & Backfill to fix missing columns and NULL timestamps/users across all tables
@@ -66,6 +72,9 @@ async function autoInitDatabase() {
       `ALTER TABLE tbl_Supplier ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
       `ALTER TABLE tbl_Supplier ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`,
 
+      `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS dec_Budget DECIMAL(12,2) DEFAULT 0.00;`,
+      `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS txt_Month VARCHAR(20) DEFAULT 'August';`,
+      `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS int_Year INT DEFAULT 2026;`,
       `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
       `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
       `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
@@ -107,23 +116,28 @@ async function autoInitDatabase() {
         // Table or column check safeguard
       }
     }
-    // Truncate all data tables to clear all rows as requested
+    // Deduplicate any repeated category records by name in tbl_Category
     try {
-      await initConn.query('SET FOREIGN_KEY_CHECKS = 0;');
-      await initConn.query('TRUNCATE TABLE tbl_Payment;');
-      await initConn.query('TRUNCATE TABLE tbl_Purchase;');
-      await initConn.query('TRUNCATE TABLE tbl_Quotation_Item;');
-      await initConn.query('TRUNCATE TABLE tbl_Quotation;');
-      await initConn.query('TRUNCATE TABLE tbl_Request_Item;');
-      await initConn.query('TRUNCATE TABLE tbl_Inventory_Request;');
-      await initConn.query('TRUNCATE TABLE tbl_Store_Stock;');
-      await initConn.query('TRUNCATE TABLE tbl_Item;');
-      await initConn.query('TRUNCATE TABLE tbl_Category;');
-      await initConn.query('TRUNCATE TABLE tbl_Supplier;');
-      await initConn.query('TRUNCATE TABLE tbl_Store;');
-      await initConn.query('TRUNCATE TABLE tbl_Requirement_Period;');
-      await initConn.query('DELETE FROM tbl_Admin WHERE int_Admin_Id > 1;');
+      await initConn.query(`
+        DELETE c1 FROM tbl_Category c1
+        INNER JOIN tbl_Category c2 
+        WHERE c1.int_Category_Id > c2.int_Category_Id 
+          AND LOWER(TRIM(c1.txt_Category_Name)) = LOWER(TRIM(c2.txt_Category_Name));
+      `);
+    } catch (dedupErr) {}
 
+    // Deduplicate repeated inventory requests per store to maintain single store-wise requests
+    try {
+      await initConn.query(`
+        DELETE r1 FROM tbl_Inventory_Request r1
+        INNER JOIN tbl_Inventory_Request r2
+        WHERE r1.int_Store_Id = r2.int_Store_Id
+          AND r1.int_Request_Id < r2.int_Request_Id;
+      `);
+    } catch (reqDedupErr) {}
+
+    // Ensure default admin user exists
+    try {
       const [adminRows] = await initConn.query('SELECT * FROM tbl_Admin WHERE int_Admin_Id = 1');
       if (adminRows.length === 0) {
         await initConn.query(
@@ -133,10 +147,8 @@ async function autoInitDatabase() {
             (1, 'ADM001', 'Chief Warden / Admin', '24104063@nec.edu.in', 'admin', 'Chief Warden / Admin', 'Y', NOW(), 'System')`
         );
       }
-      await initConn.query('SET FOREIGN_KEY_CHECKS = 1;');
-      console.log(`✅ All MySQL database tables successfully purged of data rows.`);
-    } catch (purgeErr) {
-      console.warn(`⚠️ Table purge notice: ${purgeErr.message}`);
+    } catch (adminErr) {
+      console.warn(`⚠️ Default admin creation notice: ${adminErr.message}`);
     }
 
     console.log(`✅ System database schema migrations & timestamp backfills completed successfully.`);

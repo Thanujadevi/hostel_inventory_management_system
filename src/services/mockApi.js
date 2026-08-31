@@ -406,27 +406,37 @@ export const mockApi = {
       items: (reqItems || []).map(i => ({ int_Item_Id: i.int_Product_Id || i.int_Item_Id, int_Quantity: i.dec_Required_Qty || i.int_Quantity || 1 }))
     };
     const apiRes = await apiFetch('/requirements', { method: 'POST', body: JSON.stringify(payload) });
-    if (apiRes && apiRes.success) return apiRes;
+    if (apiRes && (apiRes.success || apiRes.int_Request_Id)) return apiRes;
     await delay();
     const db = getDB();
-    const newReqId = Math.max(...db.tbl_Inventory_Request.map(r => r.int_Request_Id || 0), 0) + 1;
-    const reqNo = reqData.txt_Request_No || generateRequestCode(db.tbl_Inventory_Request);
-
-    const newRequest = {
-      int_Request_Id: newReqId,
-      txt_Request_No: reqNo,
-      int_Store_Id: reqData.int_Store_Id,
-      dte_Request_Date: new Date().toISOString().split('T')[0],
-      txt_Month: reqData.txt_Month || 'July',
-      int_Year: reqData.int_Year || 2026,
-      dec_Budget: Number(reqData.dec_Budget || 0),
-      txt_Status: 'Pending',
-      int_Admin_Id: 1,
-      txt_Remarks: reqData.txt_Remarks || '',
-      dte_Created_Date: new Date().toISOString().split('T')[0]
-    };
-
-    db.tbl_Inventory_Request.push(newRequest);
+    
+    // Check for existing pending request for this store
+    let storeReq = db.tbl_Inventory_Request.find(r => Number(r.int_Store_Id) === Number(reqData.int_Store_Id) && (r.txt_Status === 'Pending' || r.txt_Status === 'Pending Approval'));
+    
+    let newReqId;
+    if (storeReq) {
+      newReqId = storeReq.int_Request_Id;
+      storeReq.dec_Budget = Number(reqData.dec_Budget || 0);
+      storeReq.txt_Remarks = reqData.txt_Remarks || storeReq.txt_Remarks;
+      db.tbl_Request_Item = db.tbl_Request_Item.filter(ri => Number(ri.int_Request_Id) !== Number(newReqId));
+    } else {
+      newReqId = Math.max(...db.tbl_Inventory_Request.map(r => r.int_Request_Id || 0), 0) + 1;
+      const reqNo = reqData.txt_Request_No || generateRequestCode(db.tbl_Inventory_Request);
+      storeReq = {
+        int_Request_Id: newReqId,
+        txt_Request_No: reqNo,
+        int_Store_Id: reqData.int_Store_Id,
+        dte_Request_Date: new Date().toISOString().split('T')[0],
+        txt_Month: reqData.txt_Month || 'August',
+        int_Year: reqData.int_Year || 2026,
+        dec_Budget: Number(reqData.dec_Budget || 0),
+        txt_Status: 'Pending Approval',
+        int_Admin_Id: 1,
+        txt_Remarks: reqData.txt_Remarks || '',
+        dte_Created_Date: new Date().toISOString().split('T')[0]
+      };
+      db.tbl_Inventory_Request.push(storeReq);
+    }
 
     // Save request items
     let nextReqItemId = Math.max(...(db.tbl_Request_Item || []).map(ri => ri.int_Request_Item_Id || 0), 0) + 1;

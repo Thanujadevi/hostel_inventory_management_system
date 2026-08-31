@@ -8,7 +8,7 @@ import { generateRequestCode } from '../../utils/codeGenerator';
 import { matchesWordPrefix } from '../../utils/searchUtils';
 
 export const StoreRaiseRequirement = ({ setCurrentTab }) => {
-  const { currentStore } = useAuth();
+  const { currentStore, user } = useAuth();
   const { 
     requests, 
     items, 
@@ -162,7 +162,7 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
 
     try {
       const reqData = {
-        int_Store_Id: currentStore?.id,
+        int_Store_Id: currentStore?.id || currentStore?.int_Store_Id || 1,
         txt_Month: month,
         int_Year: year,
         dec_Budget: calculatedBudget,
@@ -179,7 +179,8 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
       await refreshAll();
       setCurrentTab('history');
     } catch (err) {
-      showToast("Error submitting requirement", "error");
+      console.error("Submit requirement error:", err);
+      showToast(`Error submitting requirement: ${err.message || 'Unknown error'}`, "error");
     }
   };
 
@@ -434,25 +435,19 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
                         <tr key={idx}>
                           <td>{idx + 1}</td>
                           <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <select
-                                className="form-select"
-                                required
-                                value={Number(row.int_Product_Id)}
-                                onChange={e => handleRowChange(idx, 'int_Product_Id', e.target.value)}
-                                style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text-primary)' }}
-                              >
-                                {availableCatalogueItems.map(item => (
-                                  <option key={item.int_Item_Id} value={item.int_Item_Id}>
-                                    {item.txt_Item_Name} [{item.txt_Item_Code}] — {item.txt_Category}
-                                  </option>
-                                ))}
-                              </select>
-                              {selectedItem && (
-                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                                  Code: <strong>{selectedItem.txt_Item_Code}</strong> • Brand: {selectedItem.txt_Brand || 'Generic'}
-                                </div>
-                              )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px 0' }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
+                                {selectedItem ? selectedItem.txt_Item_Name : (row.txt_Item_Name || `Product #${row.int_Product_Id}`)}
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{selectedItem?.txt_Item_Code || row.product_code || ''}</span>
+                                {selectedItem?.txt_Category && (
+                                  <span className="category-badge" style={{ fontSize: '0.7rem', padding: '1px 8px' }}>
+                                    {selectedItem.txt_Category}
+                                  </span>
+                                )}
+                                <span>Brand: {selectedItem?.txt_Brand || 'Generic'}</span>
+                              </div>
                             </div>
                           </td>
 

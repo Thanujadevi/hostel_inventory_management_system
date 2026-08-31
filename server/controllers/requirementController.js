@@ -13,9 +13,10 @@ export const requirementController = {
   async create(req, res) {
     try {
       const newReq = await RequirementModel.create(req.body);
-      res.json(newReq);
+      res.json({ success: true, ...newReq });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error("Error creating requirement request:", error);
+      res.status(500).json({ success: false, error: error.message });
     }
   },
 
