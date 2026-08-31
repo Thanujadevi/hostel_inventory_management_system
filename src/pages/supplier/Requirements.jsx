@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { Send, Truck, Package, Layers, CheckCircle } from 'lucide-react';
 import { generateQuotationCode } from '../../utils/codeGenerator';
 
@@ -62,6 +63,8 @@ export const SupplierRequirements = () => {
 
   // Per-product unit price map: { [product_id]: price }
   const [unitPrices, setUnitPrices] = useState({});
+  // Per-product item availability map: { [product_id]: boolean } (default true)
+  const [availability, setAvailability] = useState({});
 
   const handlePriceChange = (productId, price) => {
     setUnitPrices(prev => ({
@@ -70,15 +73,24 @@ export const SupplierRequirements = () => {
     }));
   };
 
-  // Calculate Subtotal & Grand Total
+  const handleAvailabilityToggle = (productId, isAvailable) => {
+    setAvailability(prev => ({
+      ...prev,
+      [productId]: isAvailable
+    }));
+  };
+
+  // Calculate Subtotal & Grand Total (Sums only AVAILABLE items)
   const subtotalAmount = useMemo(() => {
     return consolidatedProducts.reduce((sum, prod) => {
+      const isAvail = availability[prod.int_Product_Id] !== false;
+      if (!isAvail) return sum;
       const price = unitPrices[prod.int_Product_Id] !== undefined && unitPrices[prod.int_Product_Id] !== ''
         ? Number(unitPrices[prod.int_Product_Id])
         : 120; // Default demo rate
       return sum + (price * prod.total_required_qty);
     }, 0);
-  }, [consolidatedProducts, unitPrices]);
+  }, [consolidatedProducts, unitPrices, availability]);
 
   const grandTotal = subtotalAmount + Number(transportCost || 0);
 
@@ -97,25 +109,37 @@ export const SupplierRequirements = () => {
       for (const req of targetReqs) {
         if (!req) continue;
         const itemsList = (req.items || []).map(i => {
-          const uPrice = unitPrices[i.int_Product_Id] !== undefined && unitPrices[i.int_Product_Id] !== ''
+          const isAvail = availability[i.int_Product_Id] !== false;
+          const uPrice = isAvail && unitPrices[i.int_Product_Id] !== undefined && unitPrices[i.int_Product_Id] !== ''
             ? Number(unitPrices[i.int_Product_Id])
-            : 120;
+            : (isAvail ? 120 : 0);
           return {
             int_Product_Id: i.int_Product_Id,
-            dec_Unit_Price: uPrice,
-            dec_Available_Qty: i.dec_Required_Qty
+            dec_Unit_Price: isAvail ? uPrice : 0,
+            dec_Available_Qty: i.dec_Required_Qty,
+            is_available: isAvail
           };
         });
 
         const qData = {
           int_Request_Id: req.int_Request_Id,
           int_Supplier_Id: user?.id || 1,
-          dec_Transport_Cost: Number(transportCost || 0),
-          int_Delivery_Days: Number(deliveryDays || 3),
-          txt_Remarks: remarks
+          dbl_Total_Amount: Number(transportCost || 0) + itemsList.reduce((acc, item) => acc + (Number(item.dec_Unit_Price || 0) * Number(item.dec_Available_Qty || 1)), 0),
+          txt_Delivery_Days: `${deliveryDays || 3} Days`,
+          txt_Payment_Terms: 'Net 30',
+          txt_Status: 'Submitted',
+          txt_Created_By: user?.name || user?.username || user?.company || 'Supplier',
+          txt_Updated_By: user?.name || user?.username || user?.company || 'Supplier',
+          items: itemsList.map(i => ({
+            int_Item_Id: i.int_Product_Id,
+            int_Quantity: i.dec_Available_Qty,
+            dbl_Unit_Price: i.dec_Unit_Price,
+            dbl_Total_Price: i.dec_Unit_Price * i.dec_Available_Qty
+          }))
         };
 
-        await mockApi.submitQuotation(qData, itemsList);
+        await apiService.saveQuotation(qData);
+        try { await mockApi.submitQuotation(qData, itemsList); } catch (e) {}
       }
 
       await refreshAll();
@@ -135,7 +159,7 @@ export const SupplierRequirements = () => {
         <div>
           <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Product-Wise Consolidated Bidding</h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginTop: '4px', margin: 0 }}>
-            Submit your competitive unit price bids for total consolidated product quantities.
+            Submit your competitive unit price bids for total consolidated product quantities. Toggle item availability if out of stock.
           </p>
         </div>
       </div>
@@ -184,19 +208,21 @@ export const SupplierRequirements = () => {
                     <th>Product Code & Name</th>
                     <th>Category</th>
                     <th style={{ textAlign: 'center' }}>Total Required Qty</th>
-                    <th style={{ width: '200px' }}>Offered Unit Price (₹) *</th>
+                    <th style={{ width: '160px' }}>Item Availability</th>
+                    <th style={{ width: '180px' }}>Offered Unit Price (₹)</th>
                     <th style={{ textAlign: 'right' }}>Calculated Total (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {consolidatedProducts.map((prod, idx) => {
-                    const price = unitPrices[prod.int_Product_Id] !== undefined && unitPrices[prod.int_Product_Id] !== ''
+                    const isAvail = availability[prod.int_Product_Id] !== false;
+                    const price = isAvail && unitPrices[prod.int_Product_Id] !== undefined && unitPrices[prod.int_Product_Id] !== ''
                       ? Number(unitPrices[prod.int_Product_Id])
-                      : 120;
-                    const itemTotal = price * prod.total_required_qty;
+                      : (isAvail ? 120 : 0);
+                    const itemTotal = isAvail ? (price * prod.total_required_qty) : 0;
 
                     return (
-                      <tr key={prod.int_Product_Id}>
+                      <tr key={prod.int_Product_Id} style={{ opacity: isAvail ? 1 : 0.65, backgroundColor: isAvail ? 'transparent' : 'var(--color-bg-secondary, #f8fafc)' }}>
                         <td>{idx + 1}</td>
                         <td>
                           <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{prod.product_name}</div>
@@ -219,22 +245,67 @@ export const SupplierRequirements = () => {
                           {prod.total_required_qty.toLocaleString('en-IN')} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>{prod.unit}</span>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>₹</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0.1"
-                              className="form-control"
-                              style={{ fontWeight: 700, fontSize: '0.95rem' }}
-                              required
-                              value={unitPrices[prod.int_Product_Id] !== undefined ? unitPrices[prod.int_Product_Id] : 120}
-                              onChange={e => handlePriceChange(prod.int_Product_Id, e.target.value)}
-                            />
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleAvailabilityToggle(prod.int_Product_Id, true)}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '0.75rem',
+                                borderRadius: '6px',
+                                border: '1px solid',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                borderColor: isAvail ? '#059669' : '#cbd5e1',
+                                backgroundColor: isAvail ? '#ecfdf5' : '#ffffff',
+                                color: isAvail ? '#059669' : '#64748b'
+                              }}
+                            >
+                              Available
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAvailabilityToggle(prod.int_Product_Id, false)}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '0.75rem',
+                                borderRadius: '6px',
+                                border: '1px solid',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                borderColor: !isAvail ? '#dc2626' : '#cbd5e1',
+                                backgroundColor: !isAvail ? '#fef2f2' : '#ffffff',
+                                color: !isAvail ? '#dc2626' : '#64748b'
+                              }}
+                            >
+                              Not Available
+                            </button>
                           </div>
                         </td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '1rem', color: 'var(--color-success-text)' }}>
-                          ₹{itemTotal.toLocaleString('en-IN')}
+                        <td>
+                          {isAvail ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>₹</span>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                className="form-control"
+                                style={{ fontWeight: 700, fontSize: '0.95rem' }}
+                                required
+                                onFocus={e => e.target.select()}
+                                value={unitPrices[prod.int_Product_Id] !== undefined ? unitPrices[prod.int_Product_Id] : 120}
+                                onChange={e => handlePriceChange(prod.int_Product_Id, e.target.value)}
+                              />
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#dc2626', fontStyle: 'italic' }}>
+                              Out of Stock (₹0)
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '1rem', color: isAvail ? 'var(--color-success-text)' : '#64748b' }}>
+                          {isAvail ? `₹${itemTotal.toLocaleString('en-IN')}` : '₹0 (Not Supplied)'}
                         </td>
                       </tr>
                     );

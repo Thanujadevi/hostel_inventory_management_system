@@ -12,6 +12,7 @@ import requirementRoutes from './routes/requirements.js';
 import quotationRoutes from './routes/quotations.js';
 import purchaseRoutes from './routes/purchases.js';
 import paymentRoutes from './routes/payments.js';
+import requirementPeriodRoutes from './routes/requirementPeriod.js';
 import reminderRoutes from './routes/reminders.js';
 import { startReminderScheduler } from './services/reminderScheduler.js';
 
@@ -53,6 +54,7 @@ app.use('/api/requirements', requirementRoutes);
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/requirement-period', requirementPeriodRoutes);
 app.use('/api/reminders', reminderRoutes);
 
 // Health Check Endpoint

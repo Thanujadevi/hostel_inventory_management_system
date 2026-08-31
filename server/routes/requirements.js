@@ -110,11 +110,12 @@ router.post('/period', async (req, res) => {
 
 // PATCH /api/requirements/:id/status (Approve/Reject)
 router.patch('/:id/status', async (req, res) => {
-    const { txt_Status } = req.body;
+    const txt_Status = req.body.txt_Status || req.body.status;
+    const txt_Remarks = req.body.txt_Remarks || req.body.remarks || '';
     try {
         await pool.query(
-            'UPDATE tbl_Inventory_Request SET txt_Status = ? WHERE int_Request_Id = ?',
-            [txt_Status, req.params.id]
+            'UPDATE tbl_Inventory_Request SET txt_Status = ?, txt_Remarks = ? WHERE int_Request_Id = ?',
+            [txt_Status, txt_Remarks, req.params.id]
         );
         res.json({ success: true, message: `Requirement status updated to ${txt_Status}` });
     } catch (error) {

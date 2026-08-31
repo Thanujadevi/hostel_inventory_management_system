@@ -19,9 +19,9 @@ const initialSeedData = {
       txt_Password: "admin",
       txt_Role: "Chief Warden / Admin",
       txt_Active: "Y",
-      dte_Created_Date: "2026-01-10",
+      dte_Created_Date: "2026-08-31",
       txt_Created_By: "System",
-      dte_Updated_Date: "2026-01-10",
+      dte_Updated_Date: "2026-08-31",
       txt_Updated_By: "System"
     }
   ],
@@ -38,12 +38,17 @@ const initialSeedData = {
   tbl_Requirement_Period: null
 };
 
-const STORAGE_KEY = 'hostel_ims_db_v5';
+const STORAGE_KEY = 'hostel_ims_db_v10_purged';
 
 // Helper to get database from localStorage or seed
 const getDB = () => {
-  // Clear legacy storage keys if present
+  // Clear legacy storage keys across all previous versions
   try {
+    localStorage.removeItem('hostel_ims_db_v9_synced');
+    localStorage.removeItem('hostel_ims_db_v8');
+    localStorage.removeItem('hostel_ims_db_v7');
+    localStorage.removeItem('hostel_ims_db_v6');
+    localStorage.removeItem('hostel_ims_db_v5');
     localStorage.removeItem('hostel_ims_db_v4');
     localStorage.removeItem('hostel_ims_db_v3');
     localStorage.removeItem('hostel_ims_db_v2');
@@ -57,84 +62,6 @@ const getDB = () => {
   }
   try {
     const db = JSON.parse(data);
-    let dirty = false;
-
-    if (!db.tbl_Store || !Array.isArray(db.tbl_Store)) {
-      db.tbl_Store = [];
-      dirty = true;
-    } else {
-      db.tbl_Store = db.tbl_Store.map(s => {
-        let updated = { ...s };
-        if (!updated.txt_Active) {
-          updated.txt_Active = 'Y';
-          dirty = true;
-        }
-        if (!updated.txt_Password) {
-          updated.txt_Password = 'storepassword';
-          dirty = true;
-        }
-        if (!updated.txt_Username) {
-          updated.txt_Username = (updated.txt_Store_Code || `store${updated.int_Store_Id}`).toLowerCase();
-          dirty = true;
-        }
-        return updated;
-      });
-    }
-
-    if (!db.v6_wiped) {
-      db.tbl_Supplier = [];
-      db.tbl_Inventory_Request = [];
-      db.tbl_Request_Item = [];
-      db.tbl_Quotation = [];
-      db.tbl_Quotation_Item = [];
-      db.tbl_Purchase = [];
-      db.tbl_Payment = [];
-      db.v6_wiped = true;
-      dirty = true;
-    }
-
-    if (!db.tbl_Category || !Array.isArray(db.tbl_Category)) {
-      db.tbl_Category = [];
-      dirty = true;
-    }
-    if (!db.tbl_Item || !Array.isArray(db.tbl_Item)) {
-      db.tbl_Item = [];
-      dirty = true;
-    }
-    if (!db.tbl_Inventory_Request || !Array.isArray(db.tbl_Inventory_Request)) {
-      db.tbl_Inventory_Request = [];
-      db.tbl_Request_Item = [];
-      dirty = true;
-    }
-    if (!db.tbl_Supplier || !Array.isArray(db.tbl_Supplier)) {
-      db.tbl_Supplier = [];
-      dirty = true;
-    } else {
-      db.tbl_Supplier = db.tbl_Supplier.map(sup => {
-        let uSup = { ...sup };
-        if (!uSup.txt_Country) { uSup.txt_Country = 'India'; dirty = true; }
-        if (uSup.txt_Profile_Completed === undefined) { uSup.txt_Profile_Completed = 'Y'; dirty = true; }
-        if (!db.v8_unrated_cleaned) {
-          if (uSup.dbl_Rating >= 4.5 || !uSup.dbl_Rating) {
-            uSup.dbl_Rating = 0;
-            dirty = true;
-          }
-        }
-        return uSup;
-      });
-      if (!db.v8_unrated_cleaned) {
-        db.v8_unrated_cleaned = true;
-        dirty = true;
-      }
-    }
-    if (db.tbl_Requirement_Period === undefined) {
-      db.tbl_Requirement_Period = null;
-      dirty = true;
-    }
-
-    if (dirty) {
-      saveDB(db);
-    }
     return db;
   } catch (e) {
     console.error("Failed to parse local storage DB, resetting to seed:", e);
@@ -164,8 +91,8 @@ const apiFetch = async (endpoint, options = {}) => {
   }
 };
 
-// Artificial delay to simulate real async API call when offline
-const delay = (ms = 150) => new Promise(resolve => setTimeout(resolve, ms));
+// Artificial delay helper (set to 0 for instant response)
+const delay = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const mockApi = {
   // Reset DB to seed
@@ -554,10 +481,14 @@ export const mockApi = {
       const itemsList = quoteItems
         .filter(qi => qi.int_Quotation_Id === q.int_Quotation_Id)
         .map(qi => {
-          const product = items.find(i => i.int_Item_Id === qi.int_Product_Id);
+          const pId = qi.int_Product_Id || qi.int_Item_Id;
+          const product = items.find(i => i.int_Item_Id === pId);
+          const isAvailable = qi.is_available !== false && Number(qi.dec_Unit_Price || 0) > 0;
           return {
             ...qi,
-            product_name: product ? product.txt_Item_Name : `Item #${qi.int_Product_Id}`,
+            int_Product_Id: pId,
+            is_available: isAvailable,
+            product_name: product ? product.txt_Item_Name : `Item #${pId}`,
             product_code: product ? product.txt_Item_Code : ''
           };
         });
@@ -565,10 +496,10 @@ export const mockApi = {
       return {
         ...q,
         txt_Quotation_No: q.txt_Quotation_No || `QTN-2026-${String(q.int_Quotation_Id).padStart(3, '0')}`,
-        supplier_name: supplier ? supplier.txt_Store_Name : 'Supplier',
+        supplier_name: supplier ? (supplier.txt_Supplier_Name || supplier.txt_Store_Name || 'Supplier') : 'Supplier',
         supplier_rating: supplier ? supplier.dbl_Rating : 4.0,
         supplier_phone: supplier ? supplier.txt_Phone : '',
-        supplier_gst: supplier ? supplier.txt_GST_Number : '',
+        supplier_gst: supplier ? supplier.txt_GSTIN || supplier.txt_GST_Number : '',
         items: itemsList
       };
     });
@@ -591,7 +522,10 @@ export const mockApi = {
   submitQuotation: async (quotationData, itemsList) => {
     let totalItemsAmt = 0;
     (itemsList || []).forEach(item => {
-      totalItemsAmt += (Number(item.dec_Unit_Price) * Number(item.dec_Available_Qty));
+      const isAvail = item.is_available !== false && Number(item.dec_Unit_Price || 0) > 0;
+      if (isAvail) {
+        totalItemsAmt += (Number(item.dec_Unit_Price) * Number(item.dec_Available_Qty || 1));
+      }
     });
     const payload = {
       int_Request_Id: Number(quotationData.int_Request_Id),
@@ -599,12 +533,18 @@ export const mockApi = {
       dbl_Total_Amount: totalItemsAmt,
       txt_Delivery_Days: quotationData.int_Delivery_Days ? `${quotationData.int_Delivery_Days} Days` : '3 Days',
       txt_Payment_Terms: quotationData.txt_Remarks || 'Standard Terms',
-      items: (itemsList || []).map(i => ({
-        int_Item_Id: i.int_Product_Id || i.int_Item_Id,
-        int_Quantity: i.dec_Available_Qty || 1,
-        dbl_Unit_Price: i.dec_Unit_Price || 0,
-        dbl_Total_Price: (i.dec_Unit_Price || 0) * (i.dec_Available_Qty || 1)
-      }))
+      items: (itemsList || []).map(i => {
+        const isAvail = i.is_available !== false && Number(i.dec_Unit_Price || 0) > 0;
+        const uPrice = isAvail ? Number(i.dec_Unit_Price) : 0;
+        const qty = Number(i.dec_Available_Qty || 1);
+        return {
+          int_Item_Id: i.int_Product_Id || i.int_Item_Id,
+          int_Quantity: qty,
+          dbl_Unit_Price: uPrice,
+          dbl_Total_Price: uPrice * qty,
+          is_available: isAvail
+        };
+      })
     };
     const apiRes = await apiFetch('/quotations', { method: 'POST', body: JSON.stringify(payload) });
     if (apiRes && apiRes.success) return apiRes;
@@ -629,15 +569,17 @@ export const mockApi = {
 
     let nextQItemId = Math.max(...(db.tbl_Quotation_Item || []).map(qi => qi.int_Quotation_Item_Id || 0), 0) + 1;
     itemsList.forEach(item => {
-      const uPrice = Number(item.dec_Unit_Price);
-      const qty = Number(item.dec_Available_Qty);
+      const isAvail = item.is_available !== false && Number(item.dec_Unit_Price || 0) > 0;
+      const uPrice = isAvail ? Number(item.dec_Unit_Price) : 0;
+      const qty = Number(item.dec_Available_Qty || 1);
       db.tbl_Quotation_Item.push({
         int_Quotation_Item_Id: nextQItemId++,
         int_Quotation_Id: newQId,
         int_Product_Id: Number(item.int_Product_Id),
         dec_Unit_Price: uPrice,
         dec_Available_Qty: qty,
-        dec_Total_Price: uPrice * qty
+        dec_Total_Price: uPrice * qty,
+        is_available: isAvail
       });
     });
 

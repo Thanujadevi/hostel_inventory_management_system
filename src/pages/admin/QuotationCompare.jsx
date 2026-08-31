@@ -15,8 +15,13 @@ import {
   Info
 } from 'lucide-react';
 
+import { useAuth } from '../../context/AuthContext';
+import { apiService } from '../../services/api';
+
 export const AdminQuotationCompare = () => {
   const { requests, quotations, items, refreshAll, mockApi, showToast } = useData();
+  const { user } = useAuth();
+  const activeUser = user?.name || user?.username || 'Chief Warden / Admin';
 
   // All active requirements or open requests
   const targetReqs = useMemo(() => {
@@ -30,30 +35,73 @@ export const AdminQuotationCompare = () => {
   const currentReq = requests.find(r => r.int_Request_Id === Number(selectedReqId)) || targetReqs[0];
   const reqQuotations = quotations.filter(q => q.int_Request_Id === Number(currentReq?.int_Request_Id));
 
-  // Compute Grand Total for each quotation
+  // Compute detailed statistics and Grand Total for each quotation
   const sortedQuotations = useMemo(() => {
+    const totalReqItems = currentReq?.items?.length || 0;
+
     return reqQuotations.map(q => {
+      let availableItemsCount = 0;
+      const missingItems = [];
+
+      (currentReq?.items || []).forEach(reqItem => {
+        const qItem = q.items?.find(i => (i.int_Product_Id || i.int_Item_Id) === reqItem.int_Product_Id);
+        const isAvail = qItem && qItem.is_available !== false && Number(qItem.dec_Unit_Price || 0) > 0;
+        if (isAvail) {
+          availableItemsCount++;
+        } else {
+          missingItems.push(reqItem);
+        }
+      });
+
+      const coveragePercent = totalReqItems > 0 ? Math.round((availableItemsCount / totalReqItems) * 100) : 100;
       const grandTotal = Number(q.dec_Total_Amount || 0) + Number(q.dec_Transport_Cost || 0);
+
       return {
         ...q,
+        totalReqItems,
+        availableItemsCount,
+        missingItems,
+        coveragePercent,
+        isFullCoverage: availableItemsCount === totalReqItems,
         grandTotal
       };
-    }).sort((a, b) => a.grandTotal - b.grandTotal);
-  }, [reqQuotations]);
+    }).sort((a, b) => {
+      if (a.isFullCoverage !== b.isFullCoverage) {
+        return a.isFullCoverage ? -1 : 1;
+      }
+      if (a.coveragePercent !== b.coveragePercent) {
+        return b.coveragePercent - a.coveragePercent;
+      }
+      return a.grandTotal - b.grandTotal;
+    });
+  }, [reqQuotations, currentReq]);
 
-  // Identify L1 (Lowest Bid / Minimum Budget Value)
-  const l1Quotation = sortedQuotations.length > 0 ? sortedQuotations[0] : null;
+  const optimumQuotation = sortedQuotations.length > 0 ? sortedQuotations[0] : null;
+
+  const l1FullQuotation = sortedQuotations.find(q => q.isFullCoverage) || sortedQuotations[0];
   const highestQuotation = sortedQuotations.length > 1 ? sortedQuotations[sortedQuotations.length - 1] : null;
 
-  const costSavings = l1Quotation && highestQuotation 
-    ? (highestQuotation.grandTotal - l1Quotation.grandTotal) 
+  const costSavings = optimumQuotation && highestQuotation 
+    ? (highestQuotation.grandTotal - optimumQuotation.grandTotal) 
     : 0;
 
   const handleAwardPO = async (quotationId, supplierName) => {
     if (window.confirm(`Accept bid from ${supplierName} and automatically place official Purchase Order?`)) {
       try {
-        const newPO = await mockApi.approveQuotationAndGeneratePO(quotationId);
-        showToast(`Quotation accepted! Purchase Order ${newPO.po_number || 'generated'} placed with ${supplierName}.`, 'success');
+        const quo = quotations.find(q => q.int_Quotation_Id === quotationId);
+        const poData = {
+          int_Quotation_Id: quotationId,
+          int_Request_Id: quo?.int_Request_Id || currentReq?.int_Request_Id,
+          int_Supplier_Id: quo?.int_Supplier_Id || 1,
+          int_Store_Id: currentReq?.int_Store_Id || 1,
+          dbl_Total_Amount: quo?.dbl_Total_Amount || quo?.grandTotal || 0,
+          txt_Status: 'PO Issued',
+          txt_Created_By: activeUser,
+          txt_Updated_By: activeUser
+        };
+        const newPO = await apiService.savePurchase(poData);
+        try { await mockApi.approveQuotationAndGeneratePO(quotationId); } catch (e) {}
+        showToast(`Quotation accepted! Purchase Order ${newPO?.txt_PO_Code || newPO?.po_number || 'PO'} placed with ${supplierName}.`, 'success');
         await refreshAll();
       } catch (err) {
         console.error("Error approving quotation:", err);
@@ -69,7 +117,7 @@ export const AdminQuotationCompare = () => {
         <div>
           <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Compare Price Quotes</h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginTop: '4px', margin: 0 }}>
-            Compare price quotes from different suppliers. The system highlights the lowest quote (L1).
+            Compare price quotes from suppliers. The system automatically recommends the optimum bid based on 100% item availability and lowest total cost.
           </p>
         </div>
       </div>
@@ -122,8 +170,8 @@ export const AdminQuotationCompare = () => {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Automated L1 System Recommendation Banner */}
-          {l1Quotation && (
+          {/* System Optimum Recommendation Banner */}
+          {optimumQuotation && (
             <div style={{
               backgroundColor: 'var(--color-success-bg, #ecfdf5)',
               border: '2px solid var(--color-success-border, #a7f3d0)',
@@ -146,26 +194,43 @@ export const AdminQuotationCompare = () => {
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-success-text, #059669)', backgroundColor: '#ffffff', padding: '2px 8px', borderRadius: '12px', border: '1px solid var(--color-success-border)' }}>
-                        Lowest Price Option (L1)
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        color: '#ffffff',
+                        backgroundColor: 'var(--color-success-text, #059669)',
+                        padding: '2px 10px',
+                        borderRadius: '12px'
+                      }}>
+                        {optimumQuotation.isFullCoverage ? '🏆 Optimum Supplier (100% Full Fulfillment)' : '⚠️ Best Partial Supplier (Highest Coverage)'}
+                      </span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-success-text)' }}>
+                        Item Coverage: {optimumQuotation.availableItemsCount}/{optimumQuotation.totalReqItems} ({optimumQuotation.coveragePercent}%)
                       </span>
                     </div>
-                    <h3 style={{ margin: '4px 0 2px 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                      Recommended Supplier: <span style={{ color: 'var(--color-success-text, #059669)' }}>{l1Quotation.supplier_name}</span>
+                    <h3 style={{ margin: '6px 0 2px 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      Recommended Supplier: <span style={{ color: 'var(--color-success-text, #059669)' }}>{optimumQuotation.supplier_name}</span>
                     </h3>
                     <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                      Offers the lowest total price of <strong style={{ color: 'var(--color-text-primary)', fontSize: '1rem' }}>₹{l1Quotation.grandTotal.toLocaleString('en-IN')}</strong> (Transport: ₹{l1Quotation.dec_Transport_Cost} | Delivery: {l1Quotation.int_Delivery_Days} Days)
+                      Offers available items at <strong style={{ color: 'var(--color-text-primary)', fontSize: '1rem' }}>₹{optimumQuotation.grandTotal.toLocaleString('en-IN')}</strong> (Transport: ₹{optimumQuotation.dec_Transport_Cost} | Delivery: {optimumQuotation.int_Delivery_Days} Days)
                       {costSavings > 0 && (
                         <span style={{ fontWeight: 600, color: 'var(--color-success-text, #059669)', marginLeft: '8px' }}>
                           — Saves ₹{costSavings.toLocaleString('en-IN')} compared to highest quote!
                         </span>
                       )}
                     </p>
+                    {optimumQuotation.missingItems.length > 0 && (
+                      <div style={{ marginTop: '6px', fontSize: '0.8rem', color: '#dc2626', fontWeight: 600 }}>
+                        Missing Items from Bid: {optimumQuotation.missingItems.map(i => i.product_name).join(', ')}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div>
-                  {l1Quotation.txt_Status === 'Approved' ? (
+                  {optimumQuotation.txt_Status === 'Approved' ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-success-text)', fontWeight: 700, fontSize: '1rem' }}>
                       <CheckCircle2 size={22} /> Order Placed
                     </div>
@@ -173,7 +238,7 @@ export const AdminQuotationCompare = () => {
                     <button
                       className="btn btn-success btn-lg"
                       disabled={currentReq.txt_Status === 'Approved' || currentReq.txt_Status === 'Delivered'}
-                      onClick={() => handleAwardPO(l1Quotation.int_Quotation_Id, l1Quotation.supplier_name)}
+                      onClick={() => handleAwardPO(optimumQuotation.int_Quotation_Id, optimumQuotation.supplier_name)}
                       style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', fontWeight: 700 }}
                     >
                       <ShoppingCart size={18} /> Accept Quote & Place Order
@@ -199,19 +264,19 @@ export const AdminQuotationCompare = () => {
                   <tr>
                     <th style={{ minWidth: '220px', backgroundColor: 'var(--color-bg-secondary, #f8fafc)' }}>Requested Item</th>
                     {sortedQuotations.map((q, idx) => {
-                      const isL1 = l1Quotation && q.int_Quotation_Id === l1Quotation.int_Quotation_Id;
+                      const isOptimum = optimumQuotation && q.int_Quotation_Id === optimumQuotation.int_Quotation_Id;
                       return (
                         <th 
                           key={q.int_Quotation_Id} 
                           style={{ 
                             textAlign: 'center', 
                             minWidth: '220px',
-                            backgroundColor: isL1 ? 'var(--color-success-bg, #ecfdf5)' : 'var(--color-surface-hover)',
-                            borderTop: isL1 ? '3px solid var(--color-success-text, #059669)' : 'none'
+                            backgroundColor: isOptimum ? 'var(--color-success-bg, #ecfdf5)' : 'var(--color-surface-hover)',
+                            borderTop: isOptimum ? '3px solid var(--color-success-text, #059669)' : 'none'
                           }}
                         >
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                            {isL1 && (
+                            {isOptimum && (
                               <span style={{
                                 backgroundColor: 'var(--color-success-text, #059669)',
                                 color: '#ffffff',
@@ -221,7 +286,7 @@ export const AdminQuotationCompare = () => {
                                 borderRadius: '10px',
                                 textTransform: 'uppercase'
                               }}>
-                                🏆 L1 Lowest Bid
+                                🏆 Optimum Choice
                               </span>
                             )}
                             <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
@@ -230,14 +295,15 @@ export const AdminQuotationCompare = () => {
                             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-purple-text)' }}>
                               Ref: {q.txt_Quotation_No || `QTN-2026-${String(q.int_Quotation_Id).padStart(3, '0')}`}
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              {Number(q.supplier_rating || 0) > 0 ? (
-                                <>
-                                  <Star size={12} fill="#F59E0B" color="#F59E0B" /> Rating: {Number(q.supplier_rating).toFixed(1)}
-                                </>
-                              ) : (
-                                <span style={{ fontStyle: 'italic', color: 'var(--color-text-muted)' }}>Unrated</span>
-                              )}
+                            <div style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: '8px',
+                              backgroundColor: q.isFullCoverage ? '#dcfce7' : '#fee2e2',
+                              color: q.isFullCoverage ? '#15803d' : '#b91c1c'
+                            }}>
+                              Coverage: {q.availableItemsCount}/{q.totalReqItems} ({q.coveragePercent}%)
                             </div>
                           </div>
                         </th>
@@ -249,12 +315,11 @@ export const AdminQuotationCompare = () => {
                 <tbody>
                   {/* Product-wise Unit Price comparison */}
                   {currentReq.items?.map((reqItem, idx) => {
-                    // Find lowest offered unit price for this product
+                    // Find lowest offered unit price for this product among available items
                     const validPrices = sortedQuotations.map(q => {
-                      const qItem = q.items?.find(i => i.int_Product_Id === reqItem.int_Product_Id);
-                      return (qItem && qItem.dec_Unit_Price !== undefined && !isNaN(qItem.dec_Unit_Price)) 
-                        ? Number(qItem.dec_Unit_Price) 
-                        : Infinity;
+                      const qItem = q.items?.find(i => (i.int_Product_Id || i.int_Item_Id) === reqItem.int_Product_Id);
+                      const isAvail = qItem && qItem.is_available !== false && Number(qItem.dec_Unit_Price || 0) > 0;
+                      return isAvail ? Number(qItem.dec_Unit_Price) : Infinity;
                     });
                     const minUnitPrice = validPrices.length > 0 && validPrices.some(p => p !== Infinity) 
                       ? Math.min(...validPrices) 
@@ -270,24 +335,25 @@ export const AdminQuotationCompare = () => {
                         </td>
 
                         {sortedQuotations.map(q => {
-                          const qItem = q.items?.find(i => i.int_Product_Id === reqItem.int_Product_Id);
-                          const unitPrice = (qItem && qItem.dec_Unit_Price !== undefined) ? Number(qItem.dec_Unit_Price) : null;
-                          const isLowestPrice = unitPrice !== null && !isNaN(unitPrice) && unitPrice === minUnitPrice && validPrices.filter(p => p !== Infinity).length > 1;
-                          const linePrice = qItem ? Number(qItem.dec_Total_Price || (qItem.dec_Unit_Price * reqItem.dec_Required_Qty) || 0) : 0;
+                          const qItem = q.items?.find(i => (i.int_Product_Id || i.int_Item_Id) === reqItem.int_Product_Id);
+                          const isAvail = qItem && qItem.is_available !== false && Number(qItem.dec_Unit_Price || 0) > 0;
+                          const unitPrice = isAvail ? Number(qItem.dec_Unit_Price) : null;
+                          const isLowestPrice = isAvail && unitPrice === minUnitPrice && validPrices.filter(p => p !== Infinity).length > 1;
+                          const linePrice = isAvail ? Number(qItem.dec_Total_Price || (unitPrice * reqItem.dec_Required_Qty) || 0) : 0;
 
                           return (
                             <td 
                               key={q.int_Quotation_Id} 
                               style={{ 
                                 textAlign: 'center',
-                                backgroundColor: isLowestPrice ? 'rgba(16, 185, 129, 0.05)' : 'transparent'
+                                backgroundColor: isAvail ? (isLowestPrice ? 'rgba(16, 185, 129, 0.08)' : 'transparent') : '#fff1f2'
                               }}
                             >
-                              {qItem ? (
+                              {isAvail ? (
                                 <div>
                                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                     <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isLowestPrice ? 'var(--color-success-text, #059669)' : 'var(--color-text-primary)' }}>
-                                      ₹{Number(qItem.dec_Unit_Price || 0).toFixed(2)}
+                                      ₹{unitPrice.toFixed(2)}
                                     </span>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>/ {reqItem.unit}</span>
                                     {isLowestPrice && (
@@ -301,7 +367,18 @@ export const AdminQuotationCompare = () => {
                                   </div>
                                 </div>
                               ) : (
-                                <span style={{ color: 'var(--color-text-muted)' }}>N/A</span>
+                                <span style={{
+                                  display: 'inline-block',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: '#dc2626',
+                                  backgroundColor: '#fef2f2',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #fca5a5'
+                                }}>
+                                  ❌ Not Available / Out of Stock
+                                </span>
                               )}
                             </td>
                           );
@@ -312,7 +389,7 @@ export const AdminQuotationCompare = () => {
 
                   {/* Items Subtotal row */}
                   <tr style={{ backgroundColor: 'var(--color-bg-secondary, #f8fafc)', fontWeight: 600 }}>
-                    <td>Products Subtotal Price</td>
+                    <td>Products Subtotal Price (Available Items)</td>
                     {sortedQuotations.map(q => (
                       <td key={q.int_Quotation_Id} style={{ textAlign: 'center', fontWeight: 700 }}>
                         ₹{Number(q.dec_Total_Amount).toLocaleString('en-IN')}
@@ -352,20 +429,20 @@ export const AdminQuotationCompare = () => {
 
                   {/* Grand Total Row */}
                   <tr style={{ backgroundColor: 'var(--color-primary-light)', fontSize: '1.05rem', fontWeight: 700 }}>
-                    <td style={{ color: 'var(--color-primary)' }}>Grand Total Budget (Items + Freight)</td>
+                    <td style={{ color: 'var(--color-primary)' }}>Grand Total Budget (Available Items + Freight)</td>
                     {sortedQuotations.map(q => {
-                      const isL1 = l1Quotation && q.int_Quotation_Id === l1Quotation.int_Quotation_Id;
+                      const isOptimum = optimumQuotation && q.int_Quotation_Id === optimumQuotation.int_Quotation_Id;
                       return (
                         <td 
                           key={q.int_Quotation_Id} 
                           style={{ 
                             textAlign: 'center', 
-                            color: isL1 ? 'var(--color-success-text, #059669)' : 'var(--color-primary)',
+                            color: isOptimum ? 'var(--color-success-text, #059669)' : 'var(--color-primary)',
                             fontSize: '1.1rem'
                           }}
                         >
                           ₹{q.grandTotal.toLocaleString('en-IN')}
-                          {isL1 && <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>Minimum Value (L1)</div>}
+                          {isOptimum && <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>Optimum Recommendation</div>}
                         </td>
                       );
                     })}
@@ -375,7 +452,7 @@ export const AdminQuotationCompare = () => {
                   <tr>
                     <td style={{ fontWeight: 700 }}>Action: Accept Bid & Place Order</td>
                     {sortedQuotations.map(q => {
-                      const isL1 = l1Quotation && q.int_Quotation_Id === l1Quotation.int_Quotation_Id;
+                      const isOptimum = optimumQuotation && q.int_Quotation_Id === optimumQuotation.int_Quotation_Id;
                       return (
                         <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '16px' }}>
                           {q.txt_Status === 'Approved' ? (
@@ -384,12 +461,12 @@ export const AdminQuotationCompare = () => {
                             </div>
                           ) : (
                             <button
-                              className={isL1 ? "btn btn-success" : "btn btn-secondary"}
+                              className={isOptimum ? "btn btn-success" : "btn btn-secondary"}
                               disabled={currentReq.txt_Status === 'Approved' || currentReq.txt_Status === 'Delivered'}
                               onClick={() => handleAwardPO(q.int_Quotation_Id, q.supplier_name)}
-                              style={{ width: '100%', justifyContent: 'center', fontWeight: isL1 ? 700 : 500 }}
+                              style={{ width: '100%', justifyContent: 'center', fontWeight: isOptimum ? 700 : 500 }}
                             >
-                              <Award size={16} /> {isL1 ? 'Accept L1 Bid & Place Order' : 'Accept Bid & Place Order'}
+                              <Award size={16} /> {isOptimum ? 'Accept Optimum Bid & Place Order' : 'Accept Bid & Place Order'}
                             </button>
                           )}
                         </td>

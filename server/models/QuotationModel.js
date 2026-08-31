@@ -34,15 +34,18 @@ export const QuotationModel = {
   async create(qData) {
     const [countRows] = await pool.query('SELECT COUNT(*) as cnt FROM tbl_Quotation');
     const quotationCode = qData.txt_Quotation_Code || `QUO-${String(countRows[0].cnt + 1).padStart(4, '0')}`;
+    const createdBy = qData.txt_Created_By || 'Supplier';
+    const updatedBy = qData.txt_Updated_By || createdBy;
 
     const [result] = await pool.query(
       `INSERT INTO tbl_Quotation
-        (txt_Quotation_Code, int_Request_Id, int_Supplier_Id, dte_Quotation_Date, dbl_Total_Amount, txt_Status, txt_Remarks, dte_Created_Date, txt_Created_By)
-      VALUES (?, ?, ?, CURDATE(), ?, ?, ?, CURDATE(), ?)`,
+        (txt_Quotation_Code, int_Request_Id, int_Supplier_Id, dbl_Total_Amount, txt_Status, txt_Delivery_Days, txt_Payment_Terms, dte_Submitted_Date, dte_Created_Date, txt_Created_By, dte_Updated_Date, txt_Updated_By)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, NOW(), ?)`,
       [
         quotationCode, qData.int_Request_Id, qData.int_Supplier_Id,
         qData.dbl_Total_Amount || 0, qData.txt_Status || 'Submitted',
-        qData.txt_Remarks || '', qData.txt_Created_By || 'Supplier'
+        qData.txt_Delivery_Days || '7 Days', qData.txt_Payment_Terms || 'Net 30',
+        createdBy, updatedBy
       ]
     );
 
@@ -54,8 +57,8 @@ export const QuotationModel = {
             (int_Quotation_Id, int_Item_Id, int_Quantity, dbl_Unit_Price, dbl_Total_Price)
           VALUES (?, ?, ?, ?, ?)`,
           [
-            quotationId, item.int_Item_Id, item.int_Quantity || item.quantity,
-            item.dbl_Unit_Price || item.price, item.dbl_Total_Price || ((item.quantity || 1) * (item.price || 0))
+            quotationId, item.int_Item_Id || item.int_Product_Id, item.int_Quantity || item.quantity || 1,
+            item.dbl_Unit_Price || item.price || 0, item.dbl_Total_Price || ((item.quantity || 1) * (item.price || 0))
           ]
         );
       }
@@ -63,12 +66,12 @@ export const QuotationModel = {
     return this.findById(quotationId);
   },
 
-  async updateStatus(id, status, remarks) {
+  async updateStatus(id, status, remarks, updatedBy = 'System') {
     await pool.query(
       `UPDATE tbl_Quotation SET 
-        txt_Status = ?, txt_Remarks = ?, dte_Updated_Date = CURDATE()
+        txt_Status = ?, dte_Updated_Date = NOW(), txt_Updated_By = ?
       WHERE int_Quotation_Id = ?`,
-      [status, remarks || '', id]
+      [status, updatedBy, id]
     );
     return this.findById(id);
   }

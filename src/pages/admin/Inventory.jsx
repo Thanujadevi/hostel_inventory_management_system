@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -8,7 +10,10 @@ import { generateItemCode, generateCategoryCode } from '../../utils/codeGenerato
 
 export const AdminInventory = () => {
   const { items, categories, refreshAll, mockApi, showToast } = useData();
-  const [activeTab, setActiveTab] = useState('items'); // 'items' | 'categories'
+  const { user } = useAuth();
+  const activeUser = user?.name || user?.username || 'Chief Warden / Admin';
+
+  const [activeTab, setActiveTab] = useState('items');
 
   // Item Modal State
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -18,7 +23,7 @@ export const AdminInventory = () => {
     txt_Item_Name: '',
     txt_Category: '',
     txt_Brand: '',
-    txt_Unit: 'Pcs',
+    txt_Unit: 'Nos',
     dec_Last_Purchase_Price: 100,
     txt_Description: '',
     int_quantity_in_hand: 50
@@ -43,7 +48,7 @@ export const AdminInventory = () => {
       txt_Item_Name: '',
       txt_Category: categories[0]?.txt_Category_Name || '',
       txt_Brand: '',
-      txt_Unit: 'Kg',
+      txt_Unit: 'Nos',
       dec_Last_Purchase_Price: 0,
       txt_Description: '',
       int_quantity_in_hand: 0
@@ -54,7 +59,10 @@ export const AdminInventory = () => {
   const openEditItemModal = (item) => {
     setActiveTab('items');
     setEditingItem(item);
-    setItemFormData({ ...item });
+    setItemFormData({
+      ...item,
+      txt_Category: item.txt_Category || item.txt_Category_Name || (categories[0]?.txt_Category_Name || '')
+    });
     setIsItemModalOpen(true);
   };
 
@@ -81,10 +89,15 @@ export const AdminInventory = () => {
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     try {
-      await mockApi.saveItem(editingItem ? { ...itemFormData, int_Item_Id: editingItem.int_Item_Id } : itemFormData);
+      const payload = {
+        ...itemFormData,
+        txt_Created_By: activeUser,
+        txt_Updated_By: activeUser
+      };
+      await apiService.saveItem(editingItem ? { ...payload, int_Item_Id: editingItem.int_Item_Id } : payload);
       showToast(editingItem ? "Item details updated!" : "New item added to inventory master!", "success");
       setIsItemModalOpen(false);
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       showToast("Error saving item record", "error");
     }
@@ -93,10 +106,15 @@ export const AdminInventory = () => {
   const handleCatSubmit = async (e) => {
     e.preventDefault();
     try {
-      await mockApi.saveCategory(editingCat ? { ...catFormData, int_Category_Id: editingCat.int_Category_Id } : catFormData);
+      const payload = {
+        ...catFormData,
+        txt_Created_By: activeUser,
+        txt_Updated_By: activeUser
+      };
+      await apiService.saveCategory(editingCat ? { ...payload, int_Category_Id: editingCat.int_Category_Id } : payload);
       showToast(editingCat ? "Category updated!" : "New item category created!", "success");
       setIsCatModalOpen(false);
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       showToast("Error saving category", "error");
     }
@@ -105,9 +123,9 @@ export const AdminInventory = () => {
   const handleDeleteItem = async (itemId) => {
     if (window.confirm("Are you sure you want to remove this item from the catalog?")) {
       try {
-        await mockApi.deleteItem(itemId);
+        await apiService.deleteItem(itemId);
         showToast("Item deleted", "info");
-        refreshAll();
+        await refreshAll();
       } catch (err) {
         showToast("Error deleting item", "error");
       }
@@ -117,9 +135,9 @@ export const AdminInventory = () => {
   const handleDeleteCat = async (catId) => {
     if (window.confirm("Are you sure you want to delete this category?")) {
       try {
-        await mockApi.deleteCategory(catId);
+        await apiService.deleteCategory(catId);
         showToast("Category deleted", "info");
-        refreshAll();
+        await refreshAll();
       } catch (err) {
         showToast("Error deleting category", "error");
       }
@@ -129,11 +147,8 @@ export const AdminInventory = () => {
   // Columns Definitions
   const itemColumns = [
     { header: 'Code', accessor: 'txt_Item_Code', render: row => <strong style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}>{row.txt_Item_Code}</strong> },
-    { header: 'Item Name & Brand', accessor: 'txt_Item_Name', render: row => (
-      <div>
-        <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{row.txt_Item_Name}</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Brand: {row.txt_Brand || 'Generic'}</div>
-      </div>
+    { header: 'Item Name', accessor: 'txt_Item_Name', render: row => (
+      <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{row.txt_Item_Name}</div>
     )},
     { header: 'Category', accessor: 'txt_Category', render: row => {
       const catName = row.txt_Category && row.txt_Category !== '--' 
@@ -221,7 +236,7 @@ export const AdminInventory = () => {
       </div>
 
       {activeTab === 'items' ? (
-        <Table columns={itemColumns} data={items} searchPlaceholder="Search items by code, name, category, or brand..." />
+        <Table columns={itemColumns} data={items} searchPlaceholder="Search items by code, name, or category..." />
       ) : (
         <Table columns={categoryColumns} data={categories} searchPlaceholder="Search categories..." />
       )}
@@ -273,43 +288,43 @@ export const AdminInventory = () => {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Brand / Manufacturer</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="e.g. Fortune / Philips"
-                value={itemFormData.txt_Brand}
-                onChange={e => setItemFormData({ ...itemFormData, txt_Brand: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
               <label className="form-label">Measurement Unit</label>
               <select
                 className="form-select"
                 value={itemFormData.txt_Unit}
                 onChange={e => setItemFormData({ ...itemFormData, txt_Unit: e.target.value })}
               >
-                <option value="Kg">Kg</option>
-                <option value="Liters">Liters</option>
-                <option value="Pcs">Pcs</option>
+                <option value="Nos">Nos (Numbers)</option>
+                <option value="Pcs">Pcs (Pieces)</option>
+                <option value="Kg">Kg (Kilograms)</option>
+                <option value="Litre">Litre (Litres)</option>
                 <option value="Boxes">Boxes</option>
-                <option value="Can">Can</option>
-                <option value="Pack">Pack</option>
+                <option value="Packs">Packs</option>
+                <option value="Bags">Bags</option>
+                <option value="Meters">Meters</option>
+                <option value="Rolls">Rolls</option>
+                <option value="Sets">Sets</option>
+                <option value="Cans">Cans</option>
               </select>
             </div>
+          </div>
+
+          <div className="form-row">
             <div className="form-group">
               <label className="form-label">Est. Unit Price (₹)</label>
               <input
                 type="number"
-                step="0.01"
+                step="any"
                 min="0"
                 className="form-control"
                 required
-                value={itemFormData.dec_Last_Purchase_Price}
-                onChange={e => setItemFormData({ ...itemFormData, dec_Last_Purchase_Price: Number(e.target.value) })}
+                placeholder="0"
+                value={itemFormData.dec_Last_Purchase_Price ?? ''}
+                onFocus={e => e.target.select()}
+                onChange={e => {
+                  const val = e.target.value;
+                  setItemFormData({ ...itemFormData, dec_Last_Purchase_Price: val === '' ? '' : Number(val) });
+                }}
               />
               <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
                 Estimated price per unit used for budget & purchase orders
@@ -319,11 +334,17 @@ export const AdminInventory = () => {
               <label className="form-label">Quantity in Hand</label>
               <input
                 type="number"
+                step="1"
                 min="0"
                 className="form-control"
                 required
-                value={itemFormData.int_quantity_in_hand}
-                onChange={e => setItemFormData({ ...itemFormData, int_quantity_in_hand: Number(e.target.value) })}
+                placeholder="0"
+                value={itemFormData.int_quantity_in_hand ?? ''}
+                onFocus={e => e.target.select()}
+                onChange={e => {
+                  const val = e.target.value;
+                  setItemFormData({ ...itemFormData, int_quantity_in_hand: val === '' ? '' : Number(val) });
+                }}
               />
               <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
                 Current stock available in storage when registering item
