@@ -86,7 +86,7 @@ export const Topbar = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 28px',
+      padding: '0 36px',
       zIndex: 90,
       boxShadow: 'var(--shadow-sm)',
       transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease, border-color 0.3s ease'

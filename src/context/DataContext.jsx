@@ -93,11 +93,12 @@ export const DataProvider = ({ children }) => {
   };
 
   const isRequirementWindowActive = (period = requirementPeriod) => {
-    if (!period || period.txt_Status !== 'OPEN') return false;
+    if (!period) return true;
+    if (period.txt_Status && period.txt_Status.toUpperCase() !== 'OPEN') return false;
     if (period.dte_Deadline) {
       const deadline = new Date(period.dte_Deadline).getTime();
       const now = Date.now();
-      if (now > deadline) return false;
+      if (!isNaN(deadline) && now > deadline) return false;
     }
     return true;
   };
@@ -121,6 +122,63 @@ export const DataProvider = ({ children }) => {
   }, [items]);
 
   // Action Helpers
+  const updateRequestStatus = async (id, status, remarks) => {
+    try {
+      const res = await apiService.updateRequestStatus(id, status, remarks);
+      setRequests(prev => prev.map(req => {
+        const match = Number(req.int_Request_Id) === Number(id) ||
+                      String(req.txt_Request_Code) === String(id) ||
+                      String(req.txt_Request_No) === String(id);
+        if (match) {
+          return {
+            ...req,
+            txt_Status: status,
+            status: status,
+            txt_Remarks: remarks || req.txt_Remarks
+          };
+        }
+        return req;
+      }));
+      try { await mockApi.updateRequestStatus(id, status, remarks); } catch (e) {}
+      refreshAll();
+      return res;
+    } catch (err) {
+      console.error("Error updating request status:", err);
+      throw err;
+    }
+  };
+
+  const deleteRequest = async (id) => {
+    try {
+      await apiService.deleteRequest(id);
+      setRequests(prev => prev.filter(req => 
+        Number(req.int_Request_Id) !== Number(id) && 
+        String(req.txt_Request_Code) !== String(id) && 
+        String(req.txt_Request_No) !== String(id)
+      ));
+      try { await mockApi.deleteRequirement(id); } catch (e) {}
+      refreshAll();
+      showToast("Requirement deleted successfully", "info");
+    } catch (err) {
+      console.error("Error deleting requirement:", err);
+      showToast("Error deleting requirement", "error");
+    }
+  };
+
+  const saveRequest = async (reqData, reqRows = []) => {
+    try {
+      const newReq = await apiService.saveRequest(reqData, reqRows);
+      if (newReq) {
+        setRequests(prev => [newReq, ...prev.filter(r => Number(r.int_Request_Id) !== Number(newReq.int_Request_Id))]);
+      }
+      refreshAll();
+      return newReq;
+    } catch (err) {
+      console.error("Error saving requirement:", err);
+      throw err;
+    }
+  };
+
   const resetDatabase = async () => {
     await mockApi.resetToSeed();
     await refreshAll();
@@ -135,6 +193,9 @@ export const DataProvider = ({ children }) => {
       items,
       getStoreItems,
       requests,
+      saveRequest,
+      updateRequestStatus,
+      deleteRequest,
       quotations,
       purchases,
       payments,

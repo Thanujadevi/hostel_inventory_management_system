@@ -1,80 +1,27 @@
 import express from 'express';
 import pool from '../db.js';
+import { RequirementModel } from '../models/RequirementModel.js';
 
 const router = express.Router();
 
 // GET /api/requirements
 router.get('/', async (req, res) => {
     try {
-        const [reqs] = await pool.query(`
-      SELECT 
-        r.*,
-        s.txt_Store_Name,
-        s.txt_Campus
-      FROM tbl_Inventory_Request r
-      LEFT JOIN tbl_Store s ON r.int_Store_Id = s.int_Store_Id
-      ORDER BY r.int_Request_Id DESC
-    `);
-
-        // Fetch line items for each request
-        for (let request of reqs) {
-            const [items] = await pool.query(`
-        SELECT 
-          ri.*,
-          i.txt_Item_Code,
-          i.txt_Item_Name,
-          i.txt_Unit,
-          i.dbl_Unit_Price
-        FROM tbl_Request_Item ri
-        JOIN tbl_Item i ON ri.int_Item_Id = i.int_Item_Id
-        WHERE ri.int_Request_Id = ?
-      `, [request.int_Request_Id]);
-            request.items = items;
-        }
-
-        res.json(reqs);
+        const requirements = await RequirementModel.getAll();
+        res.json(requirements);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// POST /api/requirements (Create new requisition)
+// POST /api/requirements (Create/Consolidate store requisition)
 router.post('/', async (req, res) => {
-    const { int_Store_Id, txt_Priority, txt_Remarks, items, txt_Created_By } = req.body;
-    const connection = await pool.getConnection();
-
     try {
-        await connection.beginTransaction();
-
-        const [countRows] = await connection.query('SELECT COUNT(*) as cnt FROM tbl_Inventory_Request');
-        const reqCode = `REQ-${String(countRows[0].cnt + 1).padStart(3, '0')}`;
-
-        const [result] = await connection.query(
-            `INSERT INTO tbl_Inventory_Request 
-        (txt_Request_Code, int_Store_Id, txt_Priority, txt_Status, txt_Remarks, dte_Request_Date, txt_Created_By)
-      VALUES (?, ?, ?, 'Pending Approval', ?, CURDATE(), ?)`,
-            [reqCode, int_Store_Id, txt_Priority || 'Medium', txt_Remarks || '', txt_Created_By || 'Store Manager']
-        );
-
-        const requestId = result.insertId;
-
-        if (items && Array.isArray(items)) {
-            for (let item of items) {
-                await connection.query(
-                    `INSERT INTO tbl_Request_Item (int_Request_Id, int_Item_Id, int_Quantity)
-           VALUES (?, ?, ?)`,
-                    [requestId, item.int_Item_Id, item.int_Quantity]
-                );
-            }
-        }
-
-        await connection.commit();
-        res.json({ success: true, message: 'Requirement raised successfully', requestId, requestCode: reqCode });
+        const result = await RequirementModel.create(req.body);
+        res.json({ success: true, ...result });
     } catch (error) {
-        await connection.rollback();
-        res.status(500).json({ error: error.message });
-    } finally {
-        connection.release();
+        console.error("Error creating requirement request:", error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -108,27 +55,28 @@ router.post('/period', async (req, res) => {
     }
 });
 
-// PATCH /api/requirements/:id/status (Approve/Reject)
-router.patch('/:id/status', async (req, res) => {
+const handleStatusUpdate = async (req, res) => {
     const txt_Status = req.body.txt_Status || req.body.status;
     const txt_Remarks = req.body.txt_Remarks || req.body.remarks || '';
     try {
-        await pool.query(
-            'UPDATE tbl_Inventory_Request SET txt_Status = ?, txt_Remarks = ? WHERE int_Request_Id = ?',
-            [txt_Status, txt_Remarks, req.params.id]
-        );
-        res.json({ success: true, message: `Requirement status updated to ${txt_Status}` });
+        const updated = await RequirementModel.updateStatus(req.params.id, txt_Status, txt_Remarks);
+        res.json({ success: true, message: `Requirement status updated to ${txt_Status}`, data: updated });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Error updating requirement status:", error);
+        res.status(500).json({ success: false, error: error.message });
     }
-});
+};
+
+router.patch('/:id/status', handleStatusUpdate);
+router.post('/:id/status', handleStatusUpdate);
+router.put('/:id/status', handleStatusUpdate);
 
 // DELETE /api/requirements/:id
 router.delete('/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM tbl_Request_Item WHERE int_Request_Id = ?', [req.params.id]);
         await pool.query('DELETE FROM tbl_Inventory_Request WHERE int_Request_Id = ?', [req.params.id]);
-        const [updatedList] = await pool.query('SELECT * FROM tbl_Inventory_Request ORDER BY int_Request_Id DESC');
+        const updatedList = await RequirementModel.getAll();
         res.json(updatedList);
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -367,9 +367,15 @@ export const mockApi = {
   getRequests: async () => {
     const apiRes = await apiFetch('/requirements');
     if (apiRes && Array.isArray(apiRes)) return apiRes;
-    await delay();
-    const db = getDB();
-    const requests = db.tbl_Inventory_Request || [];
+    // Deduplicate requirement rows by txt_Request_Code / int_Request_Id
+    const uniqueMap = new Map();
+    (db.tbl_Inventory_Request || []).forEach(req => {
+      const codeKey = req.txt_Request_Code || req.txt_Request_No || `REQ-${req.int_Request_Id}`;
+      if (!uniqueMap.has(codeKey) && !uniqueMap.has(String(req.int_Request_Id))) {
+        uniqueMap.set(codeKey, req);
+      }
+    });
+    const requests = Array.from(uniqueMap.values());
     const requestItems = db.tbl_Request_Item || [];
     const items = db.tbl_Item || [];
     const stores = db.tbl_Store || [];
@@ -377,22 +383,33 @@ export const mockApi = {
     // Join items & store detail
     return requests.map(req => {
       const reqItems = requestItems
-        .filter(ri => ri.int_Request_Id === req.int_Request_Id)
+        .filter(ri => Number(ri.int_Request_Id) === Number(req.int_Request_Id))
         .map(ri => {
-          const product = items.find(i => Number(i.int_Item_Id) === Number(ri.int_Product_Id));
+          const product = items.find(i => Number(i.int_Item_Id) === Number(ri.int_Product_Id || ri.int_Item_Id));
+          const qty = Number(ri.dec_Required_Qty || ri.int_Requested_Quantity || ri.int_Quantity || ri.quantity || 0);
           return {
             ...ri,
-            product_code: product ? product.txt_Item_Code : '',
-            product_name: product ? product.txt_Item_Name : `Product #${ri.int_Product_Id}`,
-            category: product ? product.txt_Category : '',
-            brand: product ? product.txt_Brand : '',
-            unit: product ? product.txt_Unit : (ri.txt_Unit || 'Pcs')
+            int_Product_Id: ri.int_Product_Id || ri.int_Item_Id,
+            int_Item_Id: ri.int_Item_Id || ri.int_Product_Id,
+            dec_Required_Qty: qty,
+            int_Requested_Quantity: qty,
+            int_Quantity: qty,
+            product_code: product ? product.txt_Item_Code : (ri.product_code || ri.txt_Item_Code || ''),
+            txt_Item_Code: product ? product.txt_Item_Code : (ri.txt_Item_Code || ri.product_code || ''),
+            product_name: product ? product.txt_Item_Name : (ri.product_name || ri.txt_Item_Name || `Product #${ri.int_Item_Id || ri.int_Product_Id}`),
+            txt_Item_Name: product ? product.txt_Item_Name : (ri.txt_Item_Name || ri.product_name || `Product #${ri.int_Item_Id || ri.int_Product_Id}`),
+            category: product ? (product.txt_Category || product.category || 'General') : (ri.category || ri.txt_Category || 'General'),
+            txt_Category: product ? (product.txt_Category || product.category || 'General') : (ri.txt_Category || ri.category || 'General'),
+            brand: product ? product.txt_Brand : (ri.brand || ri.txt_Brand || 'Standard'),
+            txt_Brand: product ? product.txt_Brand : (ri.txt_Brand || ri.brand || 'Standard'),
+            unit: product ? product.txt_Unit : (ri.unit || ri.txt_Unit || 'Pcs'),
+            txt_Unit: product ? product.txt_Unit : (ri.txt_Unit || ri.unit || 'Pcs')
           };
         });
-      const store = stores.find(s => s.int_Store_Id === req.int_Store_Id);
+      const store = stores.find(s => Number(s.int_Store_Id) === Number(req.int_Store_Id));
       return {
         ...req,
-        store_name: store ? store.txt_Store_Name : 'Unknown Store',
+        store_name: store ? store.txt_Store_Name : (req.store_name || req.txt_Store_Name || 'Hostel Store'),
         items: reqItems
       };
     });
@@ -440,33 +457,66 @@ export const mockApi = {
 
     // Save request items
     let nextReqItemId = Math.max(...(db.tbl_Request_Item || []).map(ri => ri.int_Request_Item_Id || 0), 0) + 1;
-    reqItems.forEach(item => {
-      db.tbl_Request_Item.push({
+    const itemsList = db.tbl_Item || [];
+    const storesList = db.tbl_Store || [];
+    const storeObj = storesList.find(s => Number(s.int_Store_Id) === Number(reqData.int_Store_Id));
+    storeReq.store_name = storeObj ? storeObj.txt_Store_Name : (reqData.store_name || 'Hostel Store');
+
+    const populatedItems = reqItems.map(item => {
+      const pId = Number(item.int_Product_Id || item.int_Item_Id);
+      const masterProduct = itemsList.find(i => Number(i.int_Item_Id) === pId);
+      const qty = Number(item.dec_Required_Qty || item.int_Quantity || item.int_Requested_Quantity || 1);
+      const riObj = {
         int_Request_Item_Id: nextReqItemId++,
         int_Request_Id: newReqId,
-        int_Product_Id: Number(item.int_Product_Id),
-        dec_Required_Qty: Number(item.dec_Required_Qty),
-        txt_Unit: item.txt_Unit,
+        int_Product_Id: pId,
+        int_Item_Id: pId,
+        dec_Required_Qty: qty,
+        int_Quantity: qty,
+        int_Requested_Quantity: qty,
+        product_code: masterProduct ? masterProduct.txt_Item_Code : (item.product_code || item.txt_Item_Code || `PRD-00${pId}`),
+        txt_Item_Code: masterProduct ? masterProduct.txt_Item_Code : (item.txt_Item_Code || item.product_code || `PRD-00${pId}`),
+        product_name: masterProduct ? masterProduct.txt_Item_Name : (item.product_name || item.txt_Item_Name || `Product #${pId}`),
+        txt_Item_Name: masterProduct ? masterProduct.txt_Item_Name : (item.txt_Item_Name || item.product_name || `Product #${pId}`),
+        category: masterProduct ? (masterProduct.txt_Category || masterProduct.category || masterProduct.txt_Category_Name || 'General') : (item.category || item.txt_Category || 'General'),
+        unit: masterProduct ? masterProduct.txt_Unit : (item.unit || item.txt_Unit || 'Pcs'),
+        txt_Unit: masterProduct ? masterProduct.txt_Unit : (item.txt_Unit || item.unit || 'Pcs'),
         txt_Remarks: item.txt_Remarks || ''
-      });
+      };
+      db.tbl_Request_Item.push(riObj);
+      return riObj;
     });
 
+    storeReq.items = populatedItems;
     saveDB(db);
-    return newRequest;
+    return storeReq;
   },
 
   updateRequestStatus: async (requestId, status, adminRemarks = '') => {
     const apiRes = await apiFetch(`/requirements/${requestId}/status`, { method: 'PATCH', body: JSON.stringify({ txt_Status: status, txt_Remarks: adminRemarks }) });
-    if (apiRes && apiRes.success) return apiRes;
-    await delay();
     const db = getDB();
-    const req = db.tbl_Inventory_Request.find(r => r.int_Request_Id === requestId);
+    const req = db.tbl_Inventory_Request.find(r => Number(r.int_Request_Id) === Number(requestId));
     if (req) {
       req.txt_Status = status;
-      if (adminRemarks) req.txt_Remarks += ` | Admin note: ${adminRemarks}`;
+      if (adminRemarks) req.txt_Remarks = adminRemarks;
       saveDB(db);
     }
+    if (apiRes && apiRes.success) return apiRes;
+    await delay();
     return req;
+  },
+
+  deleteRequirement: async (requestId) => {
+    const apiRes = await apiFetch(`/requirements/${requestId}`, { method: 'DELETE' }).catch(() => null);
+    const db = getDB();
+    db.tbl_Inventory_Request = (db.tbl_Inventory_Request || []).filter(r => 
+      Number(r.int_Request_Id) !== Number(requestId) && 
+      String(r.txt_Request_Code) !== String(requestId) &&
+      String(r.txt_Request_No) !== String(requestId)
+    );
+    db.tbl_Request_Item = (db.tbl_Request_Item || []).filter(ri => Number(ri.int_Request_Id) !== Number(requestId));
+    saveDB(db);
+    return apiRes || { success: true };
   },
 
   getQuotations: async (requestId = null) => {

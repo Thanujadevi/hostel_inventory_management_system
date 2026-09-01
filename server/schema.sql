@@ -161,11 +161,17 @@ CREATE TABLE IF NOT EXISTS tbl_Inventory_Request (
   int_Request_Id INT AUTO_INCREMENT PRIMARY KEY,
   txt_Request_Code VARCHAR(20) UNIQUE NOT NULL,
   int_Store_Id INT NOT NULL,
+  dec_Budget DECIMAL(12,2) DEFAULT 0.00,
+  txt_Month VARCHAR(20) DEFAULT 'August',
+  int_Year INT DEFAULT 2026,
   txt_Priority VARCHAR(20) DEFAULT 'Medium',
   txt_Status VARCHAR(40) DEFAULT 'Pending Approval',
   txt_Remarks TEXT,
   dte_Request_Date DATE,
-  txt_Created_By VARCHAR(50),
+  dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  txt_Created_By VARCHAR(50) DEFAULT 'System',
+  dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  txt_Updated_By VARCHAR(50) DEFAULT 'System',
   FOREIGN KEY (int_Store_Id) REFERENCES tbl_Store(int_Store_Id)
 );
 

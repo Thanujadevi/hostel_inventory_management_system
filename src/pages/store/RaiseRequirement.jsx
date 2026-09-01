@@ -15,6 +15,7 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
     categories,
     requirementPeriod, 
     isRequirementWindowActive, 
+    saveRequest,
     mockApi, 
     showToast, 
     refreshAll 
@@ -24,8 +25,14 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
   const windowActive = isRequirementWindowActive();
 
   // Filter catalogue items allowed by admin for this period
-  const activeItemIds = requirementPeriod?.arr_Active_Item_Ids || items.map(i => i.int_Item_Id);
-  const availableCatalogueItems = items.filter(item => activeItemIds.includes(item.int_Item_Id));
+  const activeItemIds = requirementPeriod?.arr_Active_Item_Ids;
+  const availableCatalogueItems = (Array.isArray(items) ? items : []).filter(item => {
+    if (!item) return false;
+    if (Array.isArray(activeItemIds) && activeItemIds.length > 0) {
+      return activeItemIds.some(id => Number(id) === Number(item.int_Item_Id));
+    }
+    return true;
+  });
 
   const [month, setMonth] = useState(requirementPeriod?.txt_Month || 'August');
   const [year, setYear] = useState(requirementPeriod?.int_Year || 2026);
@@ -39,18 +46,7 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
   const [modalItemQuantities, setModalItemQuantities] = useState({}); // { [itemId]: qty }
   const [modalPage, setModalPage] = useState(1);
 
-  useEffect(() => {
-    setModalPage(1);
-  }, [catalogueSearch, selectedCatFilter]);
-
-  useEffect(() => {
-    if (requirementPeriod) {
-      if (requirementPeriod.txt_Month) setMonth(requirementPeriod.txt_Month);
-      if (requirementPeriod.int_Year) setYear(requirementPeriod.int_Year);
-    }
-  }, [requirementPeriod]);
-
-  // Rows state for multi-item table input
+  // Rows state for multi-item table input (Starts empty as requested)
   const [reqRows, setReqRows] = useState([]);
 
   const isItemInRequest = (itemId) => {
@@ -161,23 +157,31 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
     }
 
     try {
+      const storeId = Number(currentStore?.int_Store_Id || currentStore?.id || currentStore?.store_id || 1);
+      const storeName = currentStore?.txt_Store_Name || currentStore?.store_name || currentStore?.name || 'Boys Hostel Store';
+
       const reqData = {
-        int_Store_Id: currentStore?.id || currentStore?.int_Store_Id || 1,
-        txt_Month: month,
-        int_Year: year,
+        int_Store_Id: storeId,
+        store_name: storeName,
+        txt_Store_Name: storeName,
+        txt_Month: month || 'August',
+        int_Year: year || 2026,
         dec_Budget: calculatedBudget,
-        txt_Remarks: remarks,
+        txt_Remarks: remarks || '',
         txt_Status: 'Pending Approval',
-        txt_Created_By: user?.name || user?.username || currentStore?.name || 'Store Incharge',
-        txt_Updated_By: user?.name || user?.username || currentStore?.name || 'Store Incharge'
+        txt_Created_By: user?.name || user?.username || storeName || 'Store Incharge',
+        txt_Updated_By: user?.name || user?.username || storeName || 'Store Incharge'
       };
 
-      const newReq = await apiService.saveRequest(reqData, reqRows);
+      const newReq = await saveRequest(reqData, reqRows);
       const reqNo = newReq?.txt_Request_No || newReq?.txt_Request_Code || 'REQ';
       showToast(`Requirement #${reqNo} submitted to Admin!`, "success");
-      resetForm();
+      setRemarks('');
+      setReqRows([]);
       await refreshAll();
-      setCurrentTab('history');
+      if (typeof setCurrentTab === 'function') {
+        setCurrentTab('history');
+      }
     } catch (err) {
       console.error("Submit requirement error:", err);
       showToast(`Error submitting requirement: ${err.message || 'Unknown error'}`, "error");

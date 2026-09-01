@@ -11,20 +11,45 @@ export const SupplierRequirements = () => {
 
   // Set of request IDs that current logged-in supplier has already submitted bids for
   const mySubmittedReqIds = useMemo(() => {
+    const sId = Number(user?.id || user?.int_Supplier_Id || user?.supplierDetails?.int_Supplier_Id || 0);
+    const sCompany = (user?.company || user?.name || '').trim().toLowerCase();
+
+    if (!sId && !sCompany) return new Set();
+
     return new Set(
       (quotations || [])
-        .filter(q => q.int_Supplier_Id === user?.id || (user?.company && q.supplier_name === user.company))
+        .filter(q => {
+          if (!q) return false;
+          const qSupId = Number(q.int_Supplier_Id || q.int_Supplier_ID || 0);
+          if (sId > 0 && qSupId > 0) {
+            return qSupId === sId;
+          }
+          const qSupName = (q.supplier_name || q.txt_Supplier_Name || q.txt_Created_By || '').trim().toLowerCase();
+          if (sCompany && qSupName) {
+            return qSupName === sCompany || qSupName.includes(sCompany) || sCompany.includes(qSupName);
+          }
+          return false;
+        })
         .map(q => Number(q.int_Request_Id))
     );
   }, [quotations, user]);
 
-  // Open requirements that HAVE NOT been bid on yet by this supplier
+  // Open requirements that HAVE NOT been bid on yet by this supplier (Deduplicated by code)
   const openUnbiddedReqs = useMemo(() => {
-    return requests.filter(r => {
-      const isOpen = r.txt_Status === 'Open for Quotation' || r.txt_Status === 'Pending' || r.txt_Status === 'Open';
+    const map = new Map();
+    (requests || []).forEach(r => {
+      if (!r) return;
+      const isOpen = r.txt_Status === 'Open for Quotation' || r.txt_Status === 'Approved' || r.txt_Status === 'Pending' || r.txt_Status === 'Open';
+      const codeKey = r.txt_Request_Code || r.txt_Request_No || `REQ-${r.int_Request_Id}`;
       const alreadyBidded = mySubmittedReqIds.has(Number(r.int_Request_Id));
-      return isOpen && !alreadyBidded;
+
+      if (isOpen && !alreadyBidded) {
+        if (!map.has(codeKey)) {
+          map.set(codeKey, r);
+        }
+      }
     });
+    return Array.from(map.values());
   }, [requests, mySubmittedReqIds]);
 
   // Aggregate items product-wise across unbidded open requests (No store names)
@@ -47,7 +72,8 @@ export const SupplierRequirements = () => {
             req_ids: new Set()
           };
         }
-        map[pId].total_required_qty += Number(item.dec_Required_Qty || 0);
+        const reqQty = Number(item.dec_Required_Qty || item.int_Requested_Quantity || item.int_Quantity || item.quantity || 0);
+        map[pId].total_required_qty += reqQty;
         map[pId].req_ids.add(req.int_Request_Id);
       });
     });
@@ -113,10 +139,11 @@ export const SupplierRequirements = () => {
           const uPrice = isAvail && unitPrices[i.int_Product_Id] !== undefined && unitPrices[i.int_Product_Id] !== ''
             ? Number(unitPrices[i.int_Product_Id])
             : (isAvail ? 120 : 0);
+          const itemQty = Number(i.dec_Required_Qty || i.int_Requested_Quantity || i.int_Quantity || i.quantity || 0);
           return {
-            int_Product_Id: i.int_Product_Id,
+            int_Product_Id: i.int_Product_Id || i.int_Item_Id,
             dec_Unit_Price: isAvail ? uPrice : 0,
-            dec_Available_Qty: i.dec_Required_Qty,
+            dec_Available_Qty: itemQty,
             is_available: isAvail
           };
         });
@@ -205,12 +232,11 @@ export const SupplierRequirements = () => {
                 <thead>
                   <tr>
                     <th style={{ width: '50px' }}>#</th>
-                    <th>Product Code & Name</th>
+                    <th>Product Description</th>
                     <th>Category</th>
-                    <th style={{ textAlign: 'center' }}>Total Required Qty</th>
+                    <th>Unit of Measurement</th>
                     <th style={{ width: '160px' }}>Item Availability</th>
-                    <th style={{ width: '180px' }}>Offered Unit Price (₹)</th>
-                    <th style={{ textAlign: 'right' }}>Calculated Total (₹)</th>
+                    <th style={{ width: '220px' }}>Offered Unit Price (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -219,16 +245,12 @@ export const SupplierRequirements = () => {
                     const price = isAvail && unitPrices[prod.int_Product_Id] !== undefined && unitPrices[prod.int_Product_Id] !== ''
                       ? Number(unitPrices[prod.int_Product_Id])
                       : (isAvail ? 120 : 0);
-                    const itemTotal = isAvail ? (price * prod.total_required_qty) : 0;
 
                     return (
                       <tr key={prod.int_Product_Id} style={{ opacity: isAvail ? 1 : 0.65, backgroundColor: isAvail ? 'transparent' : 'var(--color-bg-secondary, #f8fafc)' }}>
                         <td>{idx + 1}</td>
                         <td>
                           <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{prod.product_name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-purple-text)', fontWeight: 500 }}>
-                            Code: {prod.product_code} {prod.brand ? `| Brand: ${prod.brand}` : ''}
-                          </div>
                         </td>
                         <td>
                           <span style={{
@@ -241,8 +263,8 @@ export const SupplierRequirements = () => {
                             {prod.category}
                           </span>
                         </td>
-                        <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '1rem', color: 'var(--color-primary)' }}>
-                          {prod.total_required_qty.toLocaleString('en-IN')} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>{prod.unit}</span>
+                        <td style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                          Per {prod.unit || 'Pcs'}
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '4px' }}>
@@ -303,9 +325,6 @@ export const SupplierRequirements = () => {
                               Out of Stock (₹0)
                             </span>
                           )}
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '1rem', color: isAvail ? 'var(--color-success-text)' : '#64748b' }}>
-                          {isAvail ? `₹${itemTotal.toLocaleString('en-IN')}` : '₹0 (Not Supplied)'}
                         </td>
                       </tr>
                     );
