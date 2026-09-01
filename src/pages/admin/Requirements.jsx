@@ -29,7 +29,8 @@ import {
   ArrowRight,
   AlertCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 
 export const AdminRequirements = ({ currentTab }) => {
@@ -43,7 +44,9 @@ export const AdminRequirements = ({ currentTab }) => {
     togglePeriodStatus, 
     isRequirementWindowActive,
     refreshAll, 
-    mockApi, 
+    updateRequestStatus,
+    deleteRequest,
+    apiService, 
     showToast 
   } = useData();
 
@@ -189,27 +192,61 @@ export const AdminRequirements = ({ currentTab }) => {
     setAdminRemarks('');
   };
 
-  const handleAccept = async (reqId) => {
+  const handleAccept = async (targetReqId) => {
+    const target = typeof targetReqId === 'object' ? targetReqId : selectedReq;
+    const reqId = (typeof targetReqId === 'number' || typeof targetReqId === 'string') 
+      ? targetReqId 
+      : (target?.int_Request_Id || target?.id);
+
+    if (!reqId) {
+      showToast("Cannot approve: Missing requirement ID", "error");
+      return;
+    }
+
     try {
-      await apiService.updateRequestStatus(reqId, 'Accepted', adminRemarks || 'Verified & Approved by Admin review');
-      showToast(`Store Requirement #${selectedReq?.txt_Request_No || reqId} Verified & Approved!`, 'success');
+      await updateRequestStatus(reqId, 'Approved', adminRemarks || 'Verified & Approved by Admin review');
+      showToast(`Store Requirement #${target?.txt_Request_No || target?.txt_Request_Code || `REQ-${reqId}`} Verified & Approved!`, 'success');
       setSelectedReq(null);
-      await refreshAll();
-      setActiveTab('consolidation');
     } catch (err) {
+      console.error("Error approving store requirement:", err);
       showToast("Error approving store requirement", "error");
     }
   };
 
-  const handleReject = async (reqId) => {
+  const handleReject = async (targetReqId) => {
+    const target = typeof targetReqId === 'object' ? targetReqId : selectedReq;
+    const reqId = (typeof targetReqId === 'number' || typeof targetReqId === 'string') 
+      ? targetReqId 
+      : (target?.int_Request_Id || target?.id);
+
+    if (!reqId) {
+      showToast("Cannot reject: Missing requirement ID", "error");
+      return;
+    }
+
     if (window.confirm("Reject this store requirement?")) {
       try {
-        await apiService.updateRequestStatus(reqId, 'Rejected', adminRemarks || 'Rejected by Admin review');
+        await updateRequestStatus(reqId, 'Rejected', adminRemarks || 'Rejected by Admin review');
         showToast(`Requirement rejected by Admin`, 'info');
         setSelectedReq(null);
-        refreshAll();
       } catch (err) {
+        console.error("Error rejecting requirement:", err);
         showToast("Error rejecting requirement", "error");
+      }
+    }
+  };
+
+  const handleDeleteRequest = async (targetReq) => {
+    const reqId = typeof targetReq === 'object' ? (targetReq.int_Request_Id || targetReq.id) : targetReq;
+    const reqCode = typeof targetReq === 'object' ? (targetReq.txt_Request_No || targetReq.txt_Request_Code || `REQ-${reqId}`) : `REQ-${reqId}`;
+    if (window.confirm(`Are you sure you want to delete requirement ${reqCode}?`)) {
+      try {
+        await deleteRequest(reqId);
+        if (selectedReq && (selectedReq.int_Request_Id === reqId || selectedReq.id === reqId)) {
+          setSelectedReq(null);
+        }
+      } catch (err) {
+        console.error("Error deleting requirement:", err);
       }
     }
   };
@@ -223,11 +260,14 @@ export const AdminRequirements = ({ currentTab }) => {
       if (!req) return false;
       let statusOk = true;
       if (conSolStatusFilter === 'ACCEPTED') {
-        statusOk = req.txt_Status === 'Accepted' || req.txt_Status === 'Approved' || req.txt_Status === 'Open for Quotation';
+        const s = String(req.txt_Status || '').toLowerCase();
+        statusOk = s.includes('accept') || s.includes('approve') || s.includes('open') || s.includes('verified');
       } else if (conSolStatusFilter === 'PENDING') {
-        statusOk = !req.txt_Status || req.txt_Status.toLowerCase().includes('pending') || req.txt_Status === 'OPEN';
+        const s = String(req.txt_Status || '').toLowerCase();
+        statusOk = s.includes('pending');
       } else if (conSolStatusFilter === 'REJECTED') {
-        statusOk = req.txt_Status === 'Rejected';
+        const s = String(req.txt_Status || '').toLowerCase();
+        statusOk = s.includes('reject');
       }
 
       let storeOk = true;
@@ -254,7 +294,7 @@ export const AdminRequirements = ({ currentTab }) => {
             int_Product_Id: prodId,
             product_code: masterItem ? masterItem.txt_Item_Code : (reqItem.product_code || reqItem.txt_Item_Code || `PRD-00${prodId}`),
             product_name: masterItem ? masterItem.txt_Item_Name : (reqItem.product_name || reqItem.txt_Item_Name || `Product #${prodId}`),
-            category: masterItem ? (masterItem.txt_Category || masterItem.category) : (reqItem.category || reqItem.txt_Category || 'General'),
+            category: masterItem ? (masterItem.txt_Category || masterItem.category || masterItem.txt_Category_Name || 'General') : (reqItem.category || reqItem.txt_Category || reqItem.txt_Category_Name || 'General'),
             unit: officialUnit,
             est_unit_price: masterItem ? Number(masterItem.dec_Last_Purchase_Price || masterItem.dbl_Unit_Price || 0) : 0,
             stock_in_hand: masterItem ? Number(masterItem.int_quantity_in_hand || masterItem.int_Current_Stock || 0) : 0,
@@ -331,15 +371,20 @@ export const AdminRequirements = ({ currentTab }) => {
     { header: 'Request Date', accessor: 'dte_Request_Date', render: row => row.dte_Request_Date ? new Date(row.dte_Request_Date).toISOString().split('T')[0] : 'Today' },
     { header: 'Month / Year', accessor: 'txt_Month', render: row => `${row.txt_Month || 'August'} ${row.int_Year || 2026}` },
     { header: 'Est. Budget', accessor: 'dec_Budget', render: row => {
-      const b = Number(row.dec_Budget || row.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || 0) * Number(i.dec_Last_Purchase_Price || 50)), 0) || 0);
+      const b = Number(row.dec_Budget || row.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || i.int_Quantity || i.quantity || 0) * Number(i.dec_Last_Purchase_Price || i.dbl_Unit_Price || 50)), 0) || 0);
       return <span style={{ fontWeight: 700 }}>₹{b.toLocaleString('en-IN')}</span>;
     }},
     { header: 'Items Count', accessor: 'items', render: row => `${row.items?.length || 0} Items` },
     { header: 'Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status} /> },
     { header: 'Actions', render: row => (
-      <button className="btn btn-primary btn-sm" onClick={() => handleOpenDetail(row)}>
-        <Eye size={14} /> Review Details
-      </button>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <button className="btn btn-primary btn-sm" onClick={() => handleOpenDetail(row)}>
+          <Eye size={14} /> Review Details
+        </button>
+        <button className="btn btn-outline-danger btn-sm" onClick={() => handleDeleteRequest(row)} title="Delete Requirement" style={{ color: 'var(--color-danger-text)', padding: '6px 10px' }}>
+          <Trash2 size={14} />
+        </button>
+      </div>
     )}
   ];
 
@@ -1010,7 +1055,7 @@ export const AdminRequirements = ({ currentTab }) => {
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Estimated Budget</span>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
-                  ₹{Number(selectedReq.dec_Budget || selectedReq.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || 0) * Number(i.dec_Last_Purchase_Price || 50)), 0) || 0).toLocaleString('en-IN')}
+                  ₹{Number(selectedReq.dec_Budget || selectedReq.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || i.int_Quantity || i.quantity || 0) * Number(i.dec_Last_Purchase_Price || i.dbl_Unit_Price || 50)), 0) || 0).toLocaleString('en-IN')}
                 </div>
               </div>
               <div>
@@ -1038,9 +1083,9 @@ export const AdminRequirements = ({ currentTab }) => {
                     {(selectedReq.items || []).map((item, idx) => {
                       const itemCode = item.product_code || item.txt_Item_Code || `PRD-00${item.int_Product_Id || item.int_Item_Id || idx + 1}`;
                       const itemName = item.product_name || item.txt_Item_Name || `Item #${item.int_Item_Id || idx + 1}`;
-                      const cat = item.category || item.txt_Category || 'General';
+                      const cat = item.category || item.txt_Category || item.txt_Category_Name || 'General';
                       const brandName = item.brand || item.txt_Brand || 'Standard';
-                      const qtyVal = item.dec_Required_Qty || item.int_Requested_Quantity || item.quantity || 0;
+                      const qtyVal = item.dec_Required_Qty ?? item.int_Requested_Quantity ?? item.int_Quantity ?? item.quantity ?? 0;
                       const unitVal = item.unit || item.txt_Unit_Of_Measurement || item.txt_Unit || 'Pcs';
                       return (
                         <tr key={idx}>
@@ -1084,14 +1129,19 @@ export const AdminRequirements = ({ currentTab }) => {
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-              <button className="btn btn-secondary" onClick={() => setSelectedReq(null)}>Close</button>
-              <button className="btn btn-danger" onClick={() => handleReject(selectedReq.int_Request_Id)}>
-                <XCircle size={16} /> Reject Request
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+              <button className="btn btn-outline-danger" onClick={() => handleDeleteRequest(selectedReq)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Trash2 size={16} /> Delete Request
               </button>
-              <button className="btn btn-success" onClick={() => handleAccept(selectedReq.int_Request_Id)}>
-                <CheckCircle size={16} /> Approve Request
-              </button>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button className="btn btn-secondary" onClick={() => setSelectedReq(null)}>Close</button>
+                <button className="btn btn-danger" onClick={() => handleReject(selectedReq)}>
+                  <XCircle size={16} /> Reject Request
+                </button>
+                <button className="btn btn-success" onClick={() => handleAccept(selectedReq)}>
+                  <CheckCircle size={16} /> Approve Request
+                </button>
+              </div>
             </div>
           </div>
         </Modal>

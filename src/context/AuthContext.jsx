@@ -6,8 +6,13 @@ const AUTH_KEY = 'hostel_ims_auth_v5';
 
 export const AuthProvider = ({ children }) => {
   const [auth, setAuth] = useState(() => {
+    // Clear legacy localStorage auth key so app always starts clean on launch
     try {
-      const saved = localStorage.getItem(AUTH_KEY);
+      localStorage.removeItem(AUTH_KEY);
+    } catch (e) {}
+
+    try {
+      const saved = sessionStorage.getItem(AUTH_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.isLoggedIn) {
@@ -15,7 +20,7 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (e) {
-      console.error("Failed to load auth state from localStorage:", e);
+      console.error("Failed to load auth state from sessionStorage:", e);
     }
     return {
       isLoggedIn: false,
@@ -29,9 +34,9 @@ export const AuthProvider = ({ children }) => {
     setAuth(newAuth);
     try {
       if (newAuth && newAuth.isLoggedIn) {
-        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+        sessionStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
       } else {
-        localStorage.removeItem(AUTH_KEY);
+        sessionStorage.removeItem(AUTH_KEY);
       }
     } catch (e) {
       console.error("Failed to save auth state:", e);
@@ -482,7 +487,7 @@ export const AuthProvider = ({ children }) => {
       };
       const updatedSession = { ...prev, user: updatedUser };
       try {
-        localStorage.setItem(AUTH_KEY, JSON.stringify(updatedSession));
+        sessionStorage.setItem(AUTH_KEY, JSON.stringify(updatedSession));
       } catch (e) {}
       return updatedSession;
     });

@@ -35,10 +35,12 @@ import { SupplierPurchaseOrders } from './pages/supplier/PurchaseOrders';
 import { SupplierProfile } from './pages/supplier/Profile';
 
 const AppContent = () => {
-  const { isLoggedIn, role, user } = useAuth();
+  const { isLoggedIn, role, user, logout } = useAuth();
 
-  const [currentTab, setCurrentTab] = useState(() => {
+  const [currentTab, setCurrentTabState] = useState(() => {
     try {
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      if (hash && hash !== 'login') return hash;
       const savedTab = localStorage.getItem(`app_active_tab_${role}`);
       if (savedTab === 'users') return 'dashboard';
       return savedTab || 'dashboard';
@@ -47,24 +49,62 @@ const AppContent = () => {
     }
   });
 
-  // Persist active tab when currentTab or role changes
-  useEffect(() => {
-    if (role && currentTab) {
+  // Wrapped tab switcher that updates browser history so Back/Forward arrows work
+  const setCurrentTab = (newTab, options = { pushHistory: true }) => {
+    if (!newTab) return;
+    setCurrentTabState(newTab);
+    if (role) {
       try {
-        localStorage.setItem(`app_active_tab_${role}`, currentTab);
+        localStorage.setItem(`app_active_tab_${role}`, newTab);
       } catch (e) {}
     }
-  }, [currentTab, role]);
-
-  // Sync tab when user role is loaded/switched
-  useEffect(() => {
-    if (role) {
-      const savedTab = localStorage.getItem(`app_active_tab_${role}`);
-      if (savedTab && savedTab !== currentTab) {
-        setCurrentTab(savedTab);
+    if (options.pushHistory !== false) {
+      const newHash = `#${newTab}`;
+      if (window.location.hash !== newHash) {
+        window.history.pushState({ tab: newTab, role, isLoggedIn: true }, '', newHash);
       }
     }
-  }, [role]);
+  };
+
+  // Sync window location hash and history popstate (Browser Back / Forward arrows)
+  useEffect(() => {
+    const handlePopState = () => {
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      if (!hash || hash === 'login') {
+        if (isLoggedIn) {
+          logout();
+        }
+      } else {
+        if (isLoggedIn) {
+          setCurrentTabState(hash);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isLoggedIn, logout]);
+
+  // Sync history state on Auth state transition (Login / Logout / App Launch)
+  useEffect(() => {
+    if (!isLoggedIn) {
+      if (window.location.hash !== '#login') {
+        window.history.replaceState({ tab: 'login', isLoggedIn: false }, '', '#login');
+      }
+    } else {
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      const initialTab = (hash && hash !== 'login') ? hash : (currentTab || 'dashboard');
+      if (currentTab !== initialTab) {
+        setCurrentTabState(initialTab);
+      }
+      const targetHash = `#${initialTab}`;
+      if (window.location.hash === '#login' || !window.location.hash) {
+        window.history.pushState({ tab: initialTab, role, isLoggedIn: true }, '', targetHash);
+      } else if (window.location.hash !== targetHash) {
+        window.history.replaceState({ tab: initialTab, role, isLoggedIn: true }, '', targetHash);
+      }
+    }
+  }, [isLoggedIn, role]);
 
   // Direct incomplete supplier to profile page
   useEffect(() => {

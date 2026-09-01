@@ -121,16 +121,46 @@ export const Sidebar = ({ currentTab, setCurrentTab }) => {
       {/* Brand Header */}
       <div style={{
         height: 'var(--topbar-height)',
-        padding: isExpandedVisually ? '0 20px' : '0 12px',
+        padding: isExpandedVisually ? '0 16px' : '0 12px',
         borderBottom: '1px solid var(--sidebar-border)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: isExpandedVisually ? 'flex-start' : 'center',
+        justifyContent: isExpandedVisually ? 'space-between' : 'center',
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
           <Logo size={34} showText={isExpandedVisually} />
         </div>
+
+        {isExpandedVisually && (
+          <button
+            type="button"
+            onClick={toggleCollapse}
+            title="Collapse Sidebar"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--sidebar-text)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px',
+              borderRadius: '6px',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--sidebar-hover-bg)';
+              e.currentTarget.style.color = 'var(--sidebar-text-hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'var(--sidebar-text)';
+            }}
+          >
+            <PanelLeftClose size={18} />
+          </button>
+        )}
       </div>
 
 

@@ -152,9 +152,12 @@ export const apiService = {
       method: 'POST',
       body: JSON.stringify(payload)
     }).catch(() => null);
-    try { await mockApi.createRequirement(reqData, payload.items); } catch (e) {}
-    if (res) return res;
-    return await mockApi.createRequirement(reqData, payload.items);
+    let mockRes = null;
+    try {
+      mockRes = await mockApi.createRequirement(reqData, payload.items);
+    } catch (e) {}
+    if (res) return { ...mockRes, ...res };
+    return mockRes;
   },
 
   async updateRequestStatus(id, status, remarks) {
@@ -162,9 +165,20 @@ export const apiService = {
       method: 'PATCH',
       body: JSON.stringify({ txt_Status: status, status, remarks, txt_Remarks: remarks })
     }).catch(() => null);
-    try { await mockApi.updateRequestStatus(id, status, remarks); } catch (e) {}
+    try {
+      await mockApi.updateRequestStatus(id, status, remarks);
+    } catch (e) {}
     if (res) return res;
     return await mockApi.updateRequestStatus(id, status, remarks);
+  },
+
+  async deleteRequest(id) {
+    const res = await fetchApi(`/requirements/${id}`, { method: 'DELETE' }).catch(() => null);
+    try {
+      await mockApi.deleteRequirement(id);
+    } catch (e) {}
+    if (res) return res;
+    return await mockApi.deleteRequirement(id);
   },
 
   // Quotations
@@ -217,7 +231,8 @@ export const apiService = {
 
   // Requirement Period
   async getRequirementPeriod() {
-    const res = await fetchApi('/requirement-period').catch(() => null);
+    let res = await fetchApi('/requirements/period').catch(() => null);
+    if (!res) res = await fetchApi('/requirement-period').catch(() => null);
     if (res) return res;
     return await mockApi.getRequirementPeriod();
   },

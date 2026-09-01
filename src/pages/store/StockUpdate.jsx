@@ -44,8 +44,10 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
     const finalMap = { ...receivedMap };
     if (linkedReq?.items) {
       linkedReq.items.forEach(item => {
-        if (finalMap[item.int_Product_Id] === undefined) {
-          finalMap[item.int_Product_Id] = item.dec_Required_Qty;
+        const pId = item.int_Product_Id || item.int_Item_Id;
+        const qty = Number(item.dec_Required_Qty || item.int_Requested_Quantity || item.int_Quantity || item.quantity || 0);
+        if (finalMap[pId] === undefined) {
+          finalMap[pId] = qty;
         }
       });
     }
@@ -54,14 +56,16 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
       // Update each delivered item's current stock level in MySQL DB
       if (linkedReq?.items) {
         for (const item of linkedReq.items) {
-          const recQty = Number(finalMap[item.int_Product_Id] || item.dec_Required_Qty || 0);
-          const catalogItem = storeItems.find(i => i.int_Item_Id === item.int_Product_Id);
+          const pId = item.int_Product_Id || item.int_Item_Id;
+          const defaultQty = Number(item.dec_Required_Qty || item.int_Requested_Quantity || item.int_Quantity || item.quantity || 0);
+          const recQty = Number(finalMap[pId] !== undefined ? finalMap[pId] : defaultQty);
+          const catalogItem = storeItems.find(i => Number(i.int_Item_Id) === Number(pId));
           const currentStock = Number(catalogItem?.int_Current_Stock || catalogItem?.int_quantity_in_hand || 0);
           const newStock = currentStock + recQty;
 
-          if (item.int_Product_Id) {
+          if (pId) {
             await apiService.saveItem({
-              int_Item_Id: item.int_Product_Id,
+              int_Item_Id: pId,
               int_Current_Stock: newStock,
               int_quantity_in_hand: newStock,
               txt_Updated_By: activeUser
@@ -152,23 +156,26 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
                 </thead>
                 <tbody>
                   {linkedReq?.items?.map((item, idx) => {
-                    const catalogItem = storeItems.find(i => i.int_Item_Id === item.int_Product_Id);
-                    const currentStock = catalogItem?.int_quantity_in_hand || 0;
-                    const recQty = receivedMap[item.int_Product_Id] !== undefined 
-                      ? receivedMap[item.int_Product_Id] 
-                      : item.dec_Required_Qty;
+                    const pId = item.int_Product_Id || item.int_Item_Id;
+                    const catalogItem = storeItems.find(i => Number(i.int_Item_Id) === Number(pId));
+                    const currentStock = catalogItem?.int_quantity_in_hand || catalogItem?.int_Current_Stock || 0;
+                    const defaultQty = Number(item.dec_Required_Qty || item.int_Requested_Quantity || item.int_Quantity || item.quantity || 0);
+                    const recQty = receivedMap[pId] !== undefined 
+                      ? receivedMap[pId] 
+                      : defaultQty;
+                    const unitName = item.unit || item.txt_Unit || 'Pcs';
 
                     return (
                       <tr key={idx}>
                         <td>{idx + 1}</td>
                         <td>
-                          <div style={{ fontWeight: 600 }}>{item.product_name}</div>
+                          <div style={{ fontWeight: 600 }}>{item.product_name || item.txt_Item_Name}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                            Current In-Hand: {currentStock} {item.unit}
+                            Current In-Hand: {currentStock} {unitName}
                           </div>
                         </td>
                         <td style={{ fontWeight: 700 }}>
-                          {item.dec_Required_Qty} {item.unit}
+                          {defaultQty} {unitName}
                         </td>
                         <td>
                           <input

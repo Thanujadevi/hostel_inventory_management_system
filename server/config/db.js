@@ -30,70 +30,76 @@ async function autoInitDatabase() {
     await initConn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\`;`);
     await initConn.query(`USE \`${database}\`;`);
 
-    // Schema file is located in server/schema.sql
-    const schemaPath = path.join(__dirname, '..', 'schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      const sqlContent = fs.readFileSync(schemaPath, 'utf8');
-      await initConn.query(sqlContent);
-      console.log(`✅ MySQL Database '${database}' auto-initialized with schema successfully.`);
-    }
-
-    // Auto-migration & Backfill to fix missing columns and NULL timestamps/users across all tables
-    const alterQueries = [
-      `ALTER TABLE tbl_Item ADD COLUMN IF NOT EXISTS txt_Brand VARCHAR(100);`,
-      `ALTER TABLE tbl_Item ADD COLUMN IF NOT EXISTS txt_Specification TEXT;`,
-      `ALTER TABLE tbl_Item ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Item ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
-      `ALTER TABLE tbl_Item ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Item ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`,
-
-      `ALTER TABLE tbl_Category ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Category ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
-      `ALTER TABLE tbl_Category ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Category ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`,
-
-      `ALTER TABLE tbl_Store ADD COLUMN IF NOT EXISTS txt_Campus VARCHAR(100);`,
-      `ALTER TABLE tbl_Store ADD COLUMN IF NOT EXISTS txt_Location VARCHAR(100);`,
-      `ALTER TABLE tbl_Store ADD COLUMN IF NOT EXISTS txt_Incharge_Name VARCHAR(100);`,
-      `ALTER TABLE tbl_Store ADD COLUMN IF NOT EXISTS txt_Store_Type VARCHAR(100);`,
-      `ALTER TABLE tbl_Store ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Store ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
-      `ALTER TABLE tbl_Store ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Store ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`,
-
-      `ALTER TABLE tbl_Supplier ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Supplier ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
-      `ALTER TABLE tbl_Supplier ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Supplier ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`,
-
-      `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
-      `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Inventory_Request ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`,
-
-      `ALTER TABLE tbl_Quotation ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Quotation ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
-      `ALTER TABLE tbl_Quotation ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Quotation ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`,
-
-      `ALTER TABLE tbl_Purchase ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Purchase ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
-      `ALTER TABLE tbl_Purchase ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Purchase ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`,
-
-      `ALTER TABLE tbl_Payment ADD COLUMN IF NOT EXISTS dte_Created_Date DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Payment ADD COLUMN IF NOT EXISTS txt_Created_By VARCHAR(50) DEFAULT 'System';`,
-      `ALTER TABLE tbl_Payment ADD COLUMN IF NOT EXISTS dte_Updated_Date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;`,
-      `ALTER TABLE tbl_Payment ADD COLUMN IF NOT EXISTS txt_Updated_By VARCHAR(50) DEFAULT 'System';`
-    ];
-
-    for (const q of alterQueries) {
-      try {
-        await initConn.query(q);
-      } catch (err) {
-        // Ignore column exists errors if older MySQL version doesn't support IF NOT EXISTS
+    // Check if database tables are already initialized
+    const [existingTables] = await initConn.query("SHOW TABLES LIKE 'tbl_Admin'");
+    if (existingTables.length === 0) {
+      // Schema file is located in server/schema.sql
+      const schemaPath = path.join(__dirname, '..', 'schema.sql');
+      if (fs.existsSync(schemaPath)) {
+        const sqlContent = fs.readFileSync(schemaPath, 'utf8');
+        await initConn.query(sqlContent);
+        console.log(`✅ MySQL Database '${database}' initialized with schema for the first time.`);
       }
+    } else {
+      console.log(`ℹ️ MySQL Database '${database}' already initialized. Skipping seed re-insertion.`);
     }
+
+    const addCol = async (table, colName, colDef) => {
+      try {
+        await initConn.query(`ALTER TABLE ${table} ADD COLUMN ${colName} ${colDef}`);
+      } catch (err) {
+        // Safe to ignore duplicate column name error
+      }
+    };
+
+    await addCol('tbl_Inventory_Request', 'dec_Budget', 'DECIMAL(12,2) DEFAULT 0.00');
+    await addCol('tbl_Inventory_Request', 'txt_Month', 'VARCHAR(20) DEFAULT "August"');
+    await addCol('tbl_Inventory_Request', 'int_Year', 'INT DEFAULT 2026');
+    await addCol('tbl_Inventory_Request', 'dte_Created_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+    await addCol('tbl_Inventory_Request', 'txt_Created_By', 'VARCHAR(50) DEFAULT "System"');
+    await addCol('tbl_Inventory_Request', 'dte_Updated_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addCol('tbl_Inventory_Request', 'txt_Updated_By', 'VARCHAR(50) DEFAULT "System"');
+
+    await addCol('tbl_Item', 'txt_Brand', 'VARCHAR(100)');
+    await addCol('tbl_Item', 'txt_Specification', 'TEXT');
+    await addCol('tbl_Item', 'dte_Created_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+    await addCol('tbl_Item', 'txt_Created_By', 'VARCHAR(50) DEFAULT "System"');
+    await addCol('tbl_Item', 'dte_Updated_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addCol('tbl_Item', 'txt_Updated_By', 'VARCHAR(50) DEFAULT "System"');
+
+    await addCol('tbl_Category', 'dte_Created_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+    await addCol('tbl_Category', 'txt_Created_By', 'VARCHAR(50) DEFAULT "System"');
+    await addCol('tbl_Category', 'dte_Updated_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addCol('tbl_Category', 'txt_Updated_By', 'VARCHAR(50) DEFAULT "System"');
+
+    await addCol('tbl_Store', 'txt_Campus', 'VARCHAR(100)');
+    await addCol('tbl_Store', 'txt_Location', 'VARCHAR(100)');
+    await addCol('tbl_Store', 'txt_Incharge_Name', 'VARCHAR(100)');
+    await addCol('tbl_Store', 'txt_Store_Type', 'VARCHAR(100)');
+    await addCol('tbl_Store', 'dte_Created_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+    await addCol('tbl_Store', 'txt_Created_By', 'VARCHAR(50) DEFAULT "System"');
+    await addCol('tbl_Store', 'dte_Updated_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addCol('tbl_Store', 'txt_Updated_By', 'VARCHAR(50) DEFAULT "System"');
+
+    await addCol('tbl_Supplier', 'dte_Created_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+    await addCol('tbl_Supplier', 'txt_Created_By', 'VARCHAR(50) DEFAULT "System"');
+    await addCol('tbl_Supplier', 'dte_Updated_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addCol('tbl_Supplier', 'txt_Updated_By', 'VARCHAR(50) DEFAULT "System"');
+
+    await addCol('tbl_Quotation', 'dte_Created_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+    await addCol('tbl_Quotation', 'txt_Created_By', 'VARCHAR(50) DEFAULT "System"');
+    await addCol('tbl_Quotation', 'dte_Updated_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addCol('tbl_Quotation', 'txt_Updated_By', 'VARCHAR(50) DEFAULT "System"');
+
+    await addCol('tbl_Purchase', 'dte_Created_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+    await addCol('tbl_Purchase', 'txt_Created_By', 'VARCHAR(50) DEFAULT "System"');
+    await addCol('tbl_Purchase', 'dte_Updated_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addCol('tbl_Purchase', 'txt_Updated_By', 'VARCHAR(50) DEFAULT "System"');
+
+    await addCol('tbl_Payment', 'dte_Created_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+    await addCol('tbl_Payment', 'txt_Created_By', 'VARCHAR(50) DEFAULT "System"');
+    await addCol('tbl_Payment', 'dte_Updated_Date', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addCol('tbl_Payment', 'txt_Updated_By', 'VARCHAR(50) DEFAULT "System"');
 
     // Backfill NULL dates and created/updated by users across all primary tables
     const tables = ['tbl_Item', 'tbl_Category', 'tbl_Store', 'tbl_Supplier', 'tbl_Inventory_Request', 'tbl_Quotation', 'tbl_Purchase', 'tbl_Payment', 'tbl_Admin'];
@@ -107,23 +113,28 @@ async function autoInitDatabase() {
         // Table or column check safeguard
       }
     }
-    // Truncate all data tables to clear all rows as requested
+    // Deduplicate any repeated category records by name in tbl_Category
     try {
-      await initConn.query('SET FOREIGN_KEY_CHECKS = 0;');
-      await initConn.query('TRUNCATE TABLE tbl_Payment;');
-      await initConn.query('TRUNCATE TABLE tbl_Purchase;');
-      await initConn.query('TRUNCATE TABLE tbl_Quotation_Item;');
-      await initConn.query('TRUNCATE TABLE tbl_Quotation;');
-      await initConn.query('TRUNCATE TABLE tbl_Request_Item;');
-      await initConn.query('TRUNCATE TABLE tbl_Inventory_Request;');
-      await initConn.query('TRUNCATE TABLE tbl_Store_Stock;');
-      await initConn.query('TRUNCATE TABLE tbl_Item;');
-      await initConn.query('TRUNCATE TABLE tbl_Category;');
-      await initConn.query('TRUNCATE TABLE tbl_Supplier;');
-      await initConn.query('TRUNCATE TABLE tbl_Store;');
-      await initConn.query('TRUNCATE TABLE tbl_Requirement_Period;');
-      await initConn.query('DELETE FROM tbl_Admin WHERE int_Admin_Id > 1;');
+      await initConn.query(`
+        DELETE c1 FROM tbl_Category c1
+        INNER JOIN tbl_Category c2 
+        WHERE c1.int_Category_Id > c2.int_Category_Id 
+          AND LOWER(TRIM(c1.txt_Category_Name)) = LOWER(TRIM(c2.txt_Category_Name));
+      `);
+    } catch (dedupErr) {}
 
+    // Deduplicate repeated inventory requests per store to maintain single store-wise requests
+    try {
+      await initConn.query(`
+        DELETE r1 FROM tbl_Inventory_Request r1
+        INNER JOIN tbl_Inventory_Request r2
+        WHERE r1.int_Store_Id = r2.int_Store_Id
+          AND r1.int_Request_Id < r2.int_Request_Id;
+      `);
+    } catch (reqDedupErr) {}
+
+    // Ensure default admin user exists
+    try {
       const [adminRows] = await initConn.query('SELECT * FROM tbl_Admin WHERE int_Admin_Id = 1');
       if (adminRows.length === 0) {
         await initConn.query(
@@ -133,10 +144,8 @@ async function autoInitDatabase() {
             (1, 'ADM001', 'Chief Warden / Admin', '24104063@nec.edu.in', 'admin', 'Chief Warden / Admin', 'Y', NOW(), 'System')`
         );
       }
-      await initConn.query('SET FOREIGN_KEY_CHECKS = 1;');
-      console.log(`✅ All MySQL database tables successfully purged of data rows.`);
-    } catch (purgeErr) {
-      console.warn(`⚠️ Table purge notice: ${purgeErr.message}`);
+    } catch (adminErr) {
+      console.warn(`⚠️ Default admin creation notice: ${adminErr.message}`);
     }
 
     console.log(`✅ System database schema migrations & timestamp backfills completed successfully.`);

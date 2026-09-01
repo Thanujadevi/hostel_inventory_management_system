@@ -280,9 +280,9 @@ export const AdminInventory = () => {
                 value={itemFormData.txt_Category}
                 onChange={e => setItemFormData({ ...itemFormData, txt_Category: e.target.value })}
               >
-                {categories.map(c => (
-                  <option key={c.int_Category_Id} value={c.txt_Category_Name}>
-                    {c.txt_Category_Name}
+                {Array.from(new Set(categories.map(c => c.txt_Category_Name).filter(Boolean))).map(catName => (
+                  <option key={catName} value={catName}>
+                    {catName}
                   </option>
                 ))}
               </select>

@@ -56,6 +56,10 @@ export const ItemModel = {
     const createdBy = item.txt_Created_By || 'System';
     const updatedBy = item.txt_Updated_By || createdBy;
 
+    const unitPrice = (item.dec_Last_Purchase_Price !== undefined && item.dec_Last_Purchase_Price !== '') ? Number(item.dec_Last_Purchase_Price) : Number(item.dbl_Unit_Price || 0);
+    const qtyInHand = (item.int_quantity_in_hand !== undefined && item.int_quantity_in_hand !== '') ? Number(item.int_quantity_in_hand) : Number(item.int_Current_Stock || 0);
+    const minStock = (item.int_Minimum_Stock_Level !== undefined && item.int_Minimum_Stock_Level !== '') ? Number(item.int_Minimum_Stock_Level) : Number(item.int_Min_Stock || 10);
+
     const [result] = await pool.query(
       `INSERT INTO tbl_Item 
         (txt_Item_Code, txt_Item_Name, int_Category_Id, txt_Unit, int_Min_Stock, int_Current_Stock, dbl_Unit_Price, txt_Status, dte_Created_Date, txt_Created_By, dte_Updated_Date, txt_Updated_By)
@@ -65,9 +69,9 @@ export const ItemModel = {
         item.txt_Item_Name,
         categoryId || null,
         item.txt_Unit || item.txt_Unit_Of_Measurement || 'Nos',
-        item.int_Min_Stock ?? item.int_Minimum_Stock_Level ?? 10,
-        item.int_Current_Stock ?? item.int_quantity_in_hand ?? 0,
-        item.dbl_Unit_Price ?? item.dec_Last_Purchase_Price ?? 0,
+        minStock,
+        qtyInHand,
+        unitPrice,
         item.txt_Status || 'Active',
         createdBy,
         updatedBy
@@ -88,6 +92,10 @@ export const ItemModel = {
 
     const updatedBy = item.txt_Updated_By || 'System';
 
+    const unitPrice = (item.dec_Last_Purchase_Price !== undefined && item.dec_Last_Purchase_Price !== '') ? Number(item.dec_Last_Purchase_Price) : (item.dbl_Unit_Price !== undefined ? Number(item.dbl_Unit_Price) : null);
+    const qtyInHand = (item.int_quantity_in_hand !== undefined && item.int_quantity_in_hand !== '') ? Number(item.int_quantity_in_hand) : (item.int_Current_Stock !== undefined ? Number(item.int_Current_Stock) : null);
+    const minStock = (item.int_Minimum_Stock_Level !== undefined && item.int_Minimum_Stock_Level !== '') ? Number(item.int_Minimum_Stock_Level) : (item.int_Min_Stock !== undefined ? Number(item.int_Min_Stock) : null);
+
     await pool.query(
       `UPDATE tbl_Item SET
         txt_Item_Code = COALESCE(?, txt_Item_Code),
@@ -106,9 +114,9 @@ export const ItemModel = {
         item.txt_Item_Name || null,
         categoryId || null,
         item.txt_Unit || item.txt_Unit_Of_Measurement || null,
-        (item.int_Min_Stock ?? item.int_Minimum_Stock_Level) ?? null,
-        (item.int_Current_Stock ?? item.int_quantity_in_hand) ?? null,
-        (item.dbl_Unit_Price ?? item.dec_Last_Purchase_Price) ?? null,
+        minStock,
+        qtyInHand,
+        unitPrice,
         item.txt_Status || null,
         updatedBy,
         id
