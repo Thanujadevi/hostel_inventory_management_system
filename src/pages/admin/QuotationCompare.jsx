@@ -25,16 +25,22 @@ import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../services/api';
 
 export const AdminQuotationCompare = () => {
-  const { requests, quotations, purchases, suppliers, refreshAll, mockApi, showToast } = useData();
+  const { requests, quotations, purchases, suppliers, updateRequestStatus, refreshAll, mockApi, showToast } = useData();
   const { user } = useAuth();
   const activeUser = user?.name || user?.username || 'Chief Warden / Admin';
 
-  // All open/unawarded requirements or requests
+  // All open/unawarded requirements or requests (filters out already awarded or processed requests)
   const targetReqs = useMemo(() => {
-    return requests.filter(r => 
-      r.txt_Status !== 'Approved' && r.txt_Status !== 'PO Issued' && r.txt_Status !== 'Delivered' && r.txt_Status !== 'Completed' && r.txt_Status !== 'Rejected'
-    );
-  }, [requests]);
+    return requests.filter(r => {
+      const status = (r.txt_Status || '').toLowerCase();
+      const isProcessed = ['approved', 'po issued', 'delivered', 'completed', 'rejected'].includes(status);
+      const hasPO = (purchases || []).some(p => 
+        Number(p.int_Request_Id) === Number(r.int_Request_Id) ||
+        String(p.request_no) === String(r.txt_Request_No || r.txt_Request_Code)
+      );
+      return !isProcessed && !hasPO;
+    });
+  }, [requests, purchases]);
 
   const [selectedReqId, setSelectedReqId] = useState(targetReqs[0]?.int_Request_Id || '');
   const currentReq = targetReqs.find(r => r.int_Request_Id === Number(selectedReqId)) || targetReqs[0];
@@ -45,7 +51,8 @@ export const AdminQuotationCompare = () => {
     if (['approved', 'po issued', 'delivered', 'completed', 'dispatched', 'shipped'].includes(reqStatus)) return true;
 
     return (purchases || []).some(p => 
-      Number(p.int_Request_Id) === Number(currentReq.int_Request_Id)
+      Number(p.int_Request_Id) === Number(currentReq.int_Request_Id) ||
+      String(p.request_no) === String(currentReq.txt_Request_No || currentReq.txt_Request_Code)
     );
   }, [currentReq, purchases]);
 
@@ -162,7 +169,7 @@ export const AdminQuotationCompare = () => {
     : 0;
 
   const handleAwardPO = async (quotationId, supplierName) => {
-    if (window.confirm(`Accept bid from ${supplierName} and automatically place official Purchase Order?`)) {
+    if (window.confirm(`Accept price quote from ${supplierName} and issue official Purchase Order?`)) {
       try {
         const quo = quotations.find(q => q.int_Quotation_Id === quotationId);
         const finalTotal = Number(quo?.dec_Total_Amount || quo?.grandTotal || 0) + Number(quo?.dec_Transport_Cost || quo?.transport || 0);
@@ -182,12 +189,120 @@ export const AdminQuotationCompare = () => {
         } catch (e) {
           newPO = await mockApi.approveQuotationAndGeneratePO(quotationId);
         }
-        showToast(`Quotation accepted! Purchase Order ${newPO?.po_number || newPO?.txt_PO_Code || 'PO'} sent to ${supplierName} for fulfillment.`, 'success');
+
+        // Update requirement status to PO Issued so quote clears from open lists
+        if (currentReq?.int_Request_Id && updateRequestStatus) {
+          try {
+            await updateRequestStatus(currentReq.int_Request_Id, 'PO Issued', `Purchase Order issued to ${supplierName}`);
+          } catch (e) {}
+        }
+
+        showToast(`Price quote accepted! Order sent to ${supplierName} for delivery.`, 'success');
         await refreshAll();
+        
+        // Reset page state to next pending request
+        const nextReq = targetReqs.find(r => Number(r.int_Request_Id) !== Number(currentReq?.int_Request_Id));
+        if (nextReq) setSelectedReqId(nextReq.int_Request_Id);
       } catch (err) {
         console.error("Error approving quotation:", err);
         showToast("Failed to place Purchase Order", "error");
       }
+    }
+  };
+
+  const handleAwardSplitPO = async () => {
+    if (!currentReq || !sortedQuotations || sortedQuotations.length === 0) return;
+
+    if (!window.confirm("Split order between suppliers based on item-wise lowest price (Item L1)? System will create separate Purchase Orders for each supplier.")) {
+      return;
+    }
+
+    try {
+      // Group items by best price supplier
+      const supplierItemMap = new Map(); // supplierId -> { supplierName, items: [], totalAmount: 0, quotationId }
+
+      (currentReq.items || []).forEach(reqItem => {
+        const reqPId = Number(reqItem.int_Product_Id || reqItem.int_Item_Id);
+        let bestQuote = null;
+        let lowestPrice = Infinity;
+
+        sortedQuotations.forEach(q => {
+          const qItem = q.items?.find(i => Number(i.int_Product_Id || i.int_Item_Id) === reqPId);
+          const price = Number(qItem?.dec_Unit_Price ?? qItem?.dbl_Unit_Price ?? qItem?.unit_price ?? 0);
+          const isAvail = qItem && qItem.is_available !== false && qItem.txt_Status !== 'Not Available' && price > 0;
+
+          if (isAvail && price < lowestPrice) {
+            lowestPrice = price;
+            bestQuote = q;
+          }
+        });
+
+        if (bestQuote) {
+          const sId = bestQuote.int_Supplier_Id;
+          const reqQty = Number(reqItem.dec_Required_Qty || reqItem.int_Requested_Quantity || reqItem.int_Quantity || reqItem.quantity || 1);
+          const lineTotal = lowestPrice * reqQty;
+
+          if (!supplierItemMap.has(sId)) {
+            supplierItemMap.set(sId, {
+              supplierId: sId,
+              supplierName: bestQuote.supplierName,
+              quotationId: bestQuote.int_Quotation_Id,
+              items: [],
+              totalAmount: lineTotal + Number(bestQuote.transport || 0)
+            });
+          } else {
+            const existing = supplierItemMap.get(sId);
+            existing.items.push(reqItem);
+            existing.totalAmount += lineTotal;
+          }
+        }
+      });
+
+      if (supplierItemMap.size === 0) {
+        showToast("No valid supplier price quotes available for item split.", "error");
+        return;
+      }
+
+      let poCount = 0;
+      const supplierNames = [];
+
+      for (const [sId, group] of supplierItemMap.entries()) {
+        const poData = {
+          int_Quotation_Id: group.quotationId,
+          int_Request_Id: currentReq.int_Request_Id,
+          int_Supplier_Id: sId,
+          int_Store_Id: currentReq.int_Store_Id || 1,
+          dbl_Total_Amount: group.totalAmount,
+          txt_Status: 'PO Issued',
+          txt_Created_By: activeUser,
+          txt_Updated_By: activeUser
+        };
+
+        try {
+          await apiService.savePurchase(poData);
+        } catch (e) {
+          await mockApi.approveQuotationAndGeneratePO(group.quotationId);
+        }
+        poCount++;
+        supplierNames.push(group.supplierName);
+      }
+
+      // Update requirement status to PO Issued so quote clears from open lists
+      if (currentReq?.int_Request_Id && updateRequestStatus) {
+        try {
+          await updateRequestStatus(currentReq.int_Request_Id, 'PO Issued', `Split Purchase Orders issued across ${poCount} suppliers`);
+        } catch (e) {}
+      }
+
+      showToast(`Split Orders Placed! ${poCount} Purchase Orders issued to: ${supplierNames.join(', ')}.`, 'success');
+      await refreshAll();
+
+      // Reset page state to next pending request
+      const nextReq = targetReqs.find(r => Number(r.int_Request_Id) !== Number(currentReq?.int_Request_Id));
+      if (nextReq) setSelectedReqId(nextReq.int_Request_Id);
+    } catch (err) {
+      console.error("Error creating split purchase orders:", err);
+      showToast("Failed to create split purchase orders", "error");
     }
   };
 
@@ -208,9 +323,9 @@ export const AdminQuotationCompare = () => {
       {/* Header Bar */}
       <div className="page-header" style={{ marginBottom: '20px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Compare Price Quotes</h1>
+          <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Compare Price Quotes & Award Orders</h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', marginTop: '2px', margin: 0 }}>
-            Compare price quotes from suppliers and select the optimum bid.
+            Compare price quotes from suppliers and issue single or split Purchase Orders (Lowest Price L1).
           </p>
         </div>
       </div>
@@ -389,19 +504,31 @@ export const AdminQuotationCompare = () => {
                   </div>
                 </div>
 
-                <div>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                   {isOrderPlaced || optimumQuotation.txt_Status === 'Approved' ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#047857', fontWeight: 700, fontSize: '0.95rem' }}>
                       <CheckCircle2 size={20} /> Order Placed & PO Issued
                     </div>
                   ) : (
-                    <button
-                      className="btn btn-success"
-                      onClick={() => handleAwardPO(optimumQuotation.int_Quotation_Id, optimumQuotation.supplierName)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 20px', fontWeight: 700, fontSize: '0.9rem' }}
-                    >
-                      <ShoppingCart size={16} /> Accept Quote & Place Order
-                    </button>
+                    <>
+                      <button
+                        className="btn btn-success"
+                        onClick={() => handleAwardPO(optimumQuotation.int_Quotation_Id, optimumQuotation.supplierName)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', fontWeight: 700, fontSize: '0.875rem' }}
+                      >
+                        <ShoppingCart size={16} /> Accept Recommended Quote
+                      </button>
+                      {sortedQuotations.length > 1 && (
+                        <button
+                          className="btn btn-primary"
+                          onClick={handleAwardSplitPO}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', fontWeight: 700, fontSize: '0.875rem', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                          title="Split order across multiple suppliers based on item-wise lowest price (Item L1)"
+                        >
+                          <Award size={16} /> Split Order (Item L1)
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

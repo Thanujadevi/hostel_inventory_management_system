@@ -22,7 +22,7 @@ export const Login = () => {
 
   // Google OAuth State
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('24104063@nec.edu.in');
+  const [googleEmailInput, setGoogleEmailInput] = useState('');
 
   // Input Focus Ref
   const primaryInputRef = useRef(null);
@@ -97,9 +97,11 @@ export const Login = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Main Google button click handler (triggers Google popup or opens fallback email modal)
   const handleDirectGoogleLogin = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setError(null);
+
     const clientId = import.meta.env?.VITE_GOOGLE_CLIENT_ID;
 
     if (clientId && window.google?.accounts?.oauth2) {
@@ -110,6 +112,7 @@ export const Login = () => {
           callback: async (tokenResponse) => {
             if (tokenResponse.error) {
               console.warn("Google OAuth error:", tokenResponse.error);
+              setIsGoogleModalOpen(true);
               return;
             }
             if (tokenResponse.access_token) {
@@ -147,7 +150,32 @@ export const Login = () => {
         }
       });
     } else {
+      setGoogleEmailInput('');
       setIsGoogleModalOpen(true);
+    }
+  };
+
+  // Submission handler for the Google Admin Email modal
+  const handleGoogleModalSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setError(null);
+
+    const emailToAuth = (googleEmailInput || '').trim();
+    if (!emailToAuth) {
+      setError("Please enter your registered Google Admin email address.");
+      return;
+    }
+
+    const authRes = await loginWithGoogleAdmin({
+      email: emailToAuth,
+      name: 'Chief Warden / Admin',
+      picture: null
+    });
+
+    if (!authRes.success) {
+      setError(authRes.message);
+    } else {
+      setIsGoogleModalOpen(false);
     }
   };
 
@@ -618,7 +646,7 @@ export const Login = () => {
         onClose={() => setIsGoogleModalOpen(false)}
         title="Admin Sign In with Google"
       >
-        <form onSubmit={handleDirectGoogleLogin}>
+        <form onSubmit={handleGoogleModalSubmit}>
           <div style={{ textAlign: 'center', marginBottom: '18px' }}>
             <div style={{ width: '54px', height: '54px', borderRadius: '50%', backgroundColor: '#eff6ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
               <svg width="28" height="28" viewBox="0 0 24 24">

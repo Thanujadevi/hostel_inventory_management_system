@@ -38,8 +38,9 @@ export const SupplierRequirements = () => {
   const openUnbiddedReqs = useMemo(() => {
     const map = new Map();
     (requests || []).forEach(r => {
-      if (!r) return;
-      const isOpen = r.txt_Status === 'Open for Quotation' || r.txt_Status === 'Approved' || r.txt_Status === 'Pending' || r.txt_Status === 'Open';
+      const status = (r.txt_Status || '').toLowerCase();
+      const isProcessed = ['po issued', 'delivered', 'completed', 'rejected'].includes(status);
+      const isOpen = !isProcessed && (status === 'open for quotation' || status === 'approved' || status === 'pending' || status === 'open');
       const codeKey = r.txt_Request_Code || r.txt_Request_No || `REQ-${r.int_Request_Id}`;
       const alreadyBidded = mySubmittedReqIds.has(Number(r.int_Request_Id));
 
