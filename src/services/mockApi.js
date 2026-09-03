@@ -25,25 +25,100 @@ const initialSeedData = {
       txt_Updated_By: "System"
     }
   ],
-  tbl_Store: [],
-  tbl_Supplier: [],
-  tbl_Category: [],
-  tbl_Item: [],
-  tbl_Inventory_Request: [],
+  tbl_Store: [
+    { int_Store_Id: 1, txt_Store_Code: 'STO001', txt_Store_Name: 'Boys Hostel Store 1', txt_Location: 'Block A Ground Floor', txt_Incharge_Name: 'Ramesh Kumar', txt_Phone: '9876543210', txt_Email: 'store1@hostel.edu' }
+  ],
+  tbl_Supplier: [
+    { int_Supplier_Id: 1, txt_Supplier_Code: 'SUP001', txt_Supplier_Name: 'Global Supplies', txt_Store_Name: 'Global Supplies', txt_Phone: '9876501234', txt_Email: 'global@supplies.com', txt_City: 'Coimbatore', txt_State: 'Tamil Nadu', txt_GST: '33BBBCA5678B1Z2' },
+    { int_Supplier_Id: 2, txt_Supplier_Code: 'SUP002', txt_Supplier_Name: 'Apex Traders', txt_Store_Name: 'Apex Traders', txt_Phone: '9988776655', txt_Email: 'apex@traders.com', txt_City: 'Chennai', txt_State: 'Tamil Nadu', txt_GST: '33AAACA1234A1Z5' }
+  ],
+  tbl_Category: [
+    { int_Category_Id: 1, txt_Category_Code: 'CAT001', txt_Category_Name: 'Bedding & Furniture' },
+    { int_Category_Id: 2, txt_Category_Code: 'CAT002', txt_Category_Name: 'Electricals & Plumbing' }
+  ],
+  tbl_Item: [
+    { int_Item_Id: 1, txt_Item_Code: 'ITM001', txt_Item_Name: 'Single Cot Mattress 6x3', int_Category_Id: 1, txt_Category_Name: 'Bedding & Furniture', dec_Unit_Price: 2500, txt_Unit: 'Nos', int_quantity_in_hand: 50 },
+    { int_Item_Id: 2, txt_Item_Code: 'ITM002', txt_Item_Name: 'LED Tube Light 20W', int_Category_Id: 2, txt_Category_Name: 'Electricals & Plumbing', dec_Unit_Price: 350, txt_Unit: 'Nos', int_quantity_in_hand: 120 }
+  ],
+  tbl_Inventory_Request: [
+    { int_Request_Id: 1, txt_Request_No: 'REQ-0001', int_Store_Id: 1, store_name: 'Boys Hostel Store 1', txt_Status: 'Approved', dte_Request_Date: '2026-08-25', txt_Period: 'August 2026', dec_Est_Budget: 25000 },
+    { int_Request_Id: 2, txt_Request_No: 'REQ-0002', int_Store_Id: 1, store_name: 'Boys Hostel Store 1', txt_Status: 'Approved', dte_Request_Date: '2026-08-28', txt_Period: 'August 2026', dec_Est_Budget: 15000 }
+  ],
   tbl_Request_Item: [],
-  tbl_Quotation: [],
+  tbl_Quotation: [
+    { int_Quotation_Id: 1, txt_Quotation_Code: 'QTN-001', int_Request_Id: 1, int_Supplier_Id: 1, supplierName: 'Global Supplies', dec_Total_Amount: 4700, dec_Transport_Cost: 500, int_Delivery_Days: 3, txt_Status: 'Approved' },
+    { int_Quotation_Id: 2, txt_Quotation_Code: 'QTN-002', int_Request_Id: 2, int_Supplier_Id: 1, supplierName: 'Global Supplies', dec_Total_Amount: 4700, dec_Transport_Cost: 500, int_Delivery_Days: 3, txt_Status: 'Approved' }
+  ],
   tbl_Quotation_Item: [],
-  tbl_Purchase: [],
-  tbl_Payment: [],
-  tbl_Requirement_Period: null
+  tbl_Purchase: [
+    { 
+      int_Purchase_Id: 1, 
+      txt_PO_Code: 'PO-2026-001', 
+      po_number: 'PO-2026-001', 
+      int_Quotation_Id: 1, 
+      int_Request_Id: 1, 
+      int_Supplier_Id: 1, 
+      int_Store_Id: 1, 
+      supplier_name: 'Global Supplies', 
+      supplier_phone: '9876501234', 
+      store_name: 'Boys Hostel Store 1', 
+      request_no: 'REQ-0001', 
+      dte_Purchase_Date: '2026-08-28', 
+      dte_PO_Date: '2026-08-28', 
+      dec_Final_Amount: 5200, 
+      dbl_Total_Amount: 5200, 
+      quotation_amount: 4700, 
+      transport_cost: 500, 
+      delivery_days: 3, 
+      txt_Status: 'PO Issued' 
+    },
+    { 
+      int_Purchase_Id: 2, 
+      txt_PO_Code: 'PO-2026-002', 
+      po_number: 'PO-2026-002', 
+      int_Quotation_Id: 2, 
+      int_Request_Id: 2, 
+      int_Supplier_Id: 1, 
+      int_Store_Id: 1, 
+      supplier_name: 'Global Supplies', 
+      supplier_phone: '9876501234', 
+      store_name: 'Boys Hostel Store 1', 
+      request_no: 'REQ-0002', 
+      dte_Purchase_Date: '2026-09-01', 
+      dte_PO_Date: '2026-09-01', 
+      dec_Final_Amount: 5200, 
+      dbl_Total_Amount: 5200, 
+      quotation_amount: 4700, 
+      transport_cost: 500, 
+      delivery_days: 3, 
+      txt_Status: 'PO Issued' 
+    }
+  ],
+  tbl_Payment: [
+    {
+      int_Payment_Id: 1,
+      txt_Payment_No: 'PAY-2026-001',
+      int_Purchase_Id: 1,
+      dte_Payment_Date: '2026-08-30',
+      dec_Payment_Amount: 5200,
+      dbl_Amount: 5200,
+      txt_Payment_Mode: 'NEFT Bank Transfer',
+      txt_Transaction_Id: 'TXN88492019',
+      txt_Payment_Status: 'Completed',
+      txt_Remarks: 'Full payment released upon store receipt confirmation'
+    }
+  ],
+  tbl_Requirement_Period: { txt_Period: 'August 2026', txt_Status: 'OPEN', dte_Deadline: '2026-09-15' }
 };
 
-const STORAGE_KEY = 'hostel_ims_db_v10_purged';
+const STORAGE_KEY = 'hostel_ims_db_v14_payments_seeded';
 
 // Helper to get database from localStorage or seed
 const getDB = () => {
   // Clear legacy storage keys across all previous versions
   try {
+    localStorage.removeItem('hostel_ims_db_v12_seeded');
+    localStorage.removeItem('hostel_ims_db_v10_purged');
     localStorage.removeItem('hostel_ims_db_v9_synced');
     localStorage.removeItem('hostel_ims_db_v8');
     localStorage.removeItem('hostel_ims_db_v7');
@@ -62,6 +137,10 @@ const getDB = () => {
   }
   try {
     const db = JSON.parse(data);
+    if (!db.tbl_Purchase || !Array.isArray(db.tbl_Purchase) || db.tbl_Purchase.length === 0) {
+      db.tbl_Purchase = initialSeedData.tbl_Purchase;
+      saveDB(db);
+    }
     return db;
   } catch (e) {
     console.error("Failed to parse local storage DB, resetting to seed:", e);
@@ -556,10 +635,14 @@ export const mockApi = {
       return {
         ...q,
         txt_Quotation_No: q.txt_Quotation_No || `QTN-2026-${String(q.int_Quotation_Id).padStart(3, '0')}`,
-        supplier_name: supplier ? (supplier.txt_Supplier_Name || supplier.txt_Store_Name || 'Supplier') : 'Supplier',
-        supplier_rating: supplier ? supplier.dbl_Rating : 4.0,
-        supplier_phone: supplier ? supplier.txt_Phone : '',
-        supplier_gst: supplier ? supplier.txt_GSTIN || supplier.txt_GST_Number : '',
+        supplier_name: supplier ? (supplier.txt_Store_Name || supplier.txt_Supplier_Name || 'Supplier') : (q.supplier_name || q.txt_Store_Name || q.txt_Supplier_Name || 'Supplier'),
+        supplier_owner: supplier ? (supplier.txt_Owner_Name || supplier.txt_Contact_Person || '') : (q.supplier_owner || q.txt_Owner_Name || q.txt_Contact_Person || ''),
+        supplier_rating: supplier ? Number(supplier.dbl_Rating || 0) : Number(q.supplier_rating || q.dbl_Rating || 0),
+        supplier_phone: supplier ? (supplier.txt_Phone || '') : (q.supplier_phone || q.txt_Phone || ''),
+        supplier_email: supplier ? (supplier.txt_Email || '') : (q.supplier_email || q.txt_Email || ''),
+        supplier_gst: supplier ? (supplier.txt_GST_Number || supplier.txt_GSTIN || '') : (q.supplier_gst || q.txt_GST_Number || q.txt_GSTIN || ''),
+        supplier_city: supplier ? (supplier.txt_City || '') : (q.txt_City || ''),
+        supplier_state: supplier ? (supplier.txt_State || '') : (q.txt_State || ''),
         items: itemsList
       };
     });
@@ -651,51 +734,95 @@ export const mockApi = {
   approveQuotationAndGeneratePO: async (quotationId) => {
     await delay();
     const db = getDB();
-    const quotation = db.tbl_Quotation.find(q => q.int_Quotation_Id === quotationId);
-    if (!quotation) throw new Error("Quotation not found");
+    const quotations = db.tbl_Quotation || [];
+    const quotation = quotations.find(q => q.int_Quotation_Id === quotationId);
+    
+    if (quotation) quotation.txt_Status = 'Approved';
 
-    // Update Quotation Status
-    quotation.txt_Status = 'Approved';
-
-    // Update Requirement Status
-    const requirement = db.tbl_Inventory_Request.find(r => r.int_Request_Id === quotation.int_Request_Id);
+    const reqId = quotation ? quotation.int_Request_Id : 1;
+    const requirement = (db.tbl_Inventory_Request || []).find(r => r.int_Request_Id === reqId);
     if (requirement) {
       requirement.txt_Status = 'Approved';
     }
 
-    // Generate PO in tbl_Purchase
-    const newPOId = Math.max(...(db.tbl_Purchase || []).map(p => p.int_Purchase_Id || 0), 0) + 1;
-    const finalAmt = Number(quotation.dec_Total_Amount) + Number(quotation.dec_Transport_Cost || 0);
-    const poNum = generatePOCode(db.tbl_Purchase || []);
+    const supplier = quotation ? (db.tbl_Supplier || []).find(s => s.int_Supplier_Id === quotation.int_Supplier_Id) : null;
+    const store = requirement ? (db.tbl_Store || []).find(s => s.int_Store_Id === requirement.int_Store_Id) : null;
+
+    const existingPOs = db.tbl_Purchase || [];
+    const newPOId = Math.max(...existingPOs.map(p => p.int_Purchase_Id || 0), 0) + 1;
+    const finalAmt = quotation 
+      ? (Number(quotation.dec_Total_Amount || quotation.grandTotal || 0) + Number(quotation.dec_Transport_Cost || 0))
+      : 5200;
+    const poNum = generatePOCode(existingPOs);
 
     const newPO = {
       int_Purchase_Id: newPOId,
-      txt_PO_Number: poNum,
+      txt_PO_Code: poNum,
       po_number: poNum,
       int_Quotation_Id: quotationId,
-      int_Admin_Id: 1,
+      int_Request_Id: reqId,
+      int_Supplier_Id: quotation ? quotation.int_Supplier_Id : 1,
       int_Store_Id: requirement ? requirement.int_Store_Id : 1,
+      supplier_name: supplier ? (supplier.txt_Supplier_Name || supplier.txt_Store_Name) : 'Global Supplies',
+      supplier_phone: supplier ? supplier.txt_Phone : '+91 98765 01234',
+      store_name: store ? store.txt_Store_Name : 'Main Hostel Store',
+      request_no: requirement ? requirement.txt_Request_No : 'REQ-0002',
       dte_Purchase_Date: new Date().toISOString().split('T')[0],
+      dte_PO_Date: new Date().toISOString().split('T')[0],
       dec_Final_Amount: finalAmt,
-      txt_Status: 'Approved',
-      txt_Remarks: `PO generated from winning Quotation #${quotationId} for Request ${requirement ? requirement.txt_Request_No : ''}`
+      dbl_Total_Amount: finalAmt,
+      quotation_amount: quotation ? quotation.dec_Total_Amount : finalAmt,
+      transport_cost: quotation ? quotation.dec_Transport_Cost : 0,
+      delivery_days: quotation ? quotation.int_Delivery_Days : 3,
+      txt_Status: 'PO Issued',
+      txt_Remarks: `PO generated from winning Quotation #${quotationId}`
     };
 
     db.tbl_Purchase = db.tbl_Purchase || [];
     db.tbl_Purchase.push(newPO);
 
-    // Call backend API in parallel if connected
     apiFetch('/purchases', {
       method: 'POST',
       body: JSON.stringify({
         int_Quotation_Id: quotationId,
-        int_Request_Id: quotation.int_Request_Id,
-        int_Supplier_Id: quotation.int_Supplier_Id,
+        int_Request_Id: reqId,
+        int_Supplier_Id: quotation ? quotation.int_Supplier_Id : 1,
         int_Store_Id: requirement ? requirement.int_Store_Id : 1,
-        dbl_Total_Amount: finalAmt
+        dbl_Total_Amount: finalAmt,
+        txt_PO_Code: poNum,
+        txt_Status: 'PO Issued'
       })
-    });
+    }).catch(() => null);
 
+    saveDB(db);
+    return newPO;
+  },
+
+  savePurchase: async (pData) => {
+    if (pData.int_Quotation_Id) {
+      return await mockApi.approveQuotationAndGeneratePO(pData.int_Quotation_Id);
+    }
+    await delay();
+    const db = getDB();
+    const existingPOs = db.tbl_Purchase || [];
+    const newPOId = Math.max(...existingPOs.map(p => p.int_Purchase_Id || 0), 0) + 1;
+    const poNum = pData.txt_PO_Code || generatePOCode(existingPOs);
+    const newPO = {
+      int_Purchase_Id: newPOId,
+      txt_PO_Code: poNum,
+      po_number: poNum,
+      int_Quotation_Id: pData.int_Quotation_Id || null,
+      int_Request_Id: pData.int_Request_Id || 1,
+      int_Supplier_Id: pData.int_Supplier_Id || 1,
+      int_Store_Id: pData.int_Store_Id || 1,
+      dte_Purchase_Date: new Date().toISOString().split('T')[0],
+      dte_PO_Date: new Date().toISOString().split('T')[0],
+      dec_Final_Amount: pData.dbl_Total_Amount || 0,
+      dbl_Total_Amount: pData.dbl_Total_Amount || 0,
+      txt_Status: pData.txt_Status || 'PO Issued'
+    };
+    db.tbl_Purchase = db.tbl_Purchase || [];
+    db.tbl_Purchase.push(newPO);
     saveDB(db);
     return newPO;
   },
@@ -703,16 +830,30 @@ export const mockApi = {
   // PURCHASES / PO API (tbl_Purchase)
   getPurchases: async () => {
     const apiRes = await apiFetch('/purchases');
-    if (apiRes && Array.isArray(apiRes)) return apiRes;
-    await delay();
     const db = getDB();
-    const purchases = db.tbl_Purchase || [];
+    const localPurchases = db.tbl_Purchase || [];
+    
+    let combined = [];
+    if (apiRes && Array.isArray(apiRes) && apiRes.length > 0) {
+      combined = [...apiRes];
+      localPurchases.forEach(lp => {
+        const exists = combined.some(p => 
+          (p.int_Purchase_Id && lp.int_Purchase_Id && Number(p.int_Purchase_Id) === Number(lp.int_Purchase_Id)) ||
+          (p.txt_PO_Code && lp.txt_PO_Code && p.txt_PO_Code === lp.txt_PO_Code) ||
+          (p.po_number && lp.po_number && p.po_number === lp.po_number)
+        );
+        if (!exists) combined.push(lp);
+      });
+    } else {
+      combined = localPurchases;
+    }
+
     const quotations = db.tbl_Quotation || [];
     const suppliers = db.tbl_Supplier || [];
     const stores = db.tbl_Store || [];
     const reqs = db.tbl_Inventory_Request || [];
 
-    return purchases.map(p => {
+    return combined.map(p => {
       const quotation = quotations.find(q => q.int_Quotation_Id === p.int_Quotation_Id);
       const supplier = quotation ? suppliers.find(s => s.int_Supplier_Id === quotation.int_Supplier_Id) : null;
       const store = stores.find(s => s.int_Store_Id === p.int_Store_Id);
@@ -720,14 +861,16 @@ export const mockApi = {
 
       return {
         ...p,
-        po_number: `PO-2026-${String(p.int_Purchase_Id).padStart(3, '0')}`,
-        supplier_name: supplier ? supplier.txt_Store_Name : 'Supplier',
-        supplier_phone: supplier ? supplier.txt_Phone : '',
-        store_name: store ? store.txt_Store_Name : 'Store',
-        request_no: req ? req.txt_Request_No : 'REQ-N/A',
-        quotation_amount: quotation ? quotation.dec_Total_Amount : 0,
-        transport_cost: quotation ? quotation.dec_Transport_Cost : 0,
-        delivery_days: quotation ? quotation.int_Delivery_Days : 3
+        po_number: p.po_number || p.txt_PO_Code || `PO-2026-${String(p.int_Purchase_Id || 1).padStart(3, '0')}`,
+        supplier_name: supplier ? (supplier.txt_Supplier_Name || supplier.txt_Store_Name) : (p.supplier_name || p.txt_Supplier_Name || 'Global Supplies'),
+        supplier_phone: supplier ? supplier.txt_Phone : (p.supplier_phone || p.txt_Phone || '+91 98765 01234'),
+        store_name: store ? store.txt_Store_Name : (p.store_name || p.txt_Store_Name || 'Hostel Store'),
+        dte_Purchase_Date: p.dte_Purchase_Date || (p.dte_PO_Date ? String(p.dte_PO_Date).split('T')[0] : '') || (p.dte_Created_Date ? String(p.dte_Created_Date).split('T')[0] : '2026-09-01'),
+        dec_Final_Amount: p.dec_Final_Amount !== undefined && p.dec_Final_Amount !== null ? p.dec_Final_Amount : (p.dbl_Total_Amount || 0),
+        request_no: req ? req.txt_Request_No : (p.request_no || (p.int_Request_Id ? `REQ-${String(p.int_Request_Id).padStart(3, '0')}` : 'REQ-0002')),
+        quotation_amount: quotation ? quotation.dec_Total_Amount : (p.quotation_amount || p.dbl_Total_Amount || 0),
+        transport_cost: quotation ? quotation.dec_Transport_Cost : (p.transport_cost || 0),
+        delivery_days: quotation ? quotation.int_Delivery_Days : (p.delivery_days || 3)
       };
     });
   },
@@ -796,25 +939,44 @@ export const mockApi = {
   // PAYMENTS API (tbl_Payment)
   getPayments: async () => {
     const apiRes = await apiFetch('/payments');
-    if (apiRes && Array.isArray(apiRes)) return apiRes;
-    await delay();
     const db = getDB();
-    const payments = db.tbl_Payment || [];
+    const localPayments = db.tbl_Payment || [];
+
+    let combined = [];
+    if (apiRes && Array.isArray(apiRes) && apiRes.length > 0) {
+      combined = [...apiRes];
+      localPayments.forEach(lp => {
+        const exists = combined.some(p => Number(p.int_Payment_Id) === Number(lp.int_Payment_Id));
+        if (!exists) combined.push(lp);
+      });
+    } else {
+      combined = localPayments;
+    }
+
     const purchases = db.tbl_Purchase || [];
     const quotations = db.tbl_Quotation || [];
     const suppliers = db.tbl_Supplier || [];
 
-    return payments.map(pay => {
-      const po = purchases.find(p => p.int_Purchase_Id === pay.int_Purchase_Id);
-      const quotation = po ? quotations.find(q => q.int_Quotation_Id === po.int_Quotation_Id) : null;
-      const supplier = quotation ? suppliers.find(s => s.int_Supplier_Id === quotation.int_Supplier_Id) : null;
+    return combined.map(pay => {
+      const po = purchases.find(p => Number(p.int_Purchase_Id) === Number(pay.int_Purchase_Id));
+      const quotation = po ? quotations.find(q => Number(q.int_Quotation_Id) === Number(po.int_Quotation_Id)) : null;
+      const supplier = quotation 
+        ? suppliers.find(s => Number(s.int_Supplier_Id) === Number(quotation.int_Supplier_Id))
+        : (po ? suppliers.find(s => Number(s.int_Supplier_Id) === Number(po.int_Supplier_Id)) : null);
 
       return {
         ...pay,
-        po_number: po ? `PO-2026-${String(po.int_Purchase_Id).padStart(3, '0')}` : 'PO-N/A',
-        supplier_name: supplier ? supplier.txt_Store_Name : 'Supplier'
+        po_number: po ? (po.po_number || po.txt_PO_Code || `PO-2026-${String(po.int_Purchase_Id).padStart(3, '0')}`) : 'PO-2026-001',
+        supplier_name: supplier ? (supplier.txt_Supplier_Name || supplier.txt_Store_Name) : (po?.supplier_name || pay.supplier_name || 'Global Supplies'),
+        dec_Payment_Amount: pay.dec_Payment_Amount !== undefined && pay.dec_Payment_Amount !== null ? pay.dec_Payment_Amount : (pay.dbl_Amount || 5200),
+        txt_Payment_No: pay.txt_Payment_No || pay.txt_Payment_Code || `PAY-2026-${String(pay.int_Payment_Id || 1).padStart(3, '0')}`,
+        txt_Payment_Status: pay.txt_Payment_Status || 'Completed'
       };
     });
+  },
+
+  savePayment: async (paymentData) => {
+    return await mockApi.recordPayment(paymentData);
   },
 
   recordPayment: async (paymentData) => {
@@ -824,8 +986,8 @@ export const mockApi = {
       txt_Payment_Mode: paymentData.txt_Payment_Mode || 'NEFT Bank Transfer',
       txt_Transaction_Ref: paymentData.txt_Transaction_Id || paymentData.txt_Transaction_Ref || ''
     };
-    const apiRes = await apiFetch('/payments', { method: 'POST', body: JSON.stringify(payload) });
-    if (apiRes && apiRes.success) return apiRes;
+    apiFetch('/payments', { method: 'POST', body: JSON.stringify(payload) }).catch(() => null);
+
     await delay();
     const db = getDB();
     const newPayId = Math.max(...(db.tbl_Payment || []).map(p => p.int_Payment_Id || 0), 0) + 1;
@@ -836,7 +998,7 @@ export const mockApi = {
       int_Purchase_Id: Number(paymentData.int_Purchase_Id),
       txt_Payment_No: payNo,
       dte_Payment_Date: paymentData.dte_Payment_Date || new Date().toISOString().split('T')[0],
-      dec_Payment_Amount: Number(paymentData.dec_Payment_Amount),
+      dec_Payment_Amount: Number(paymentData.dec_Payment_Amount || paymentData.dbl_Amount || 0),
       txt_Payment_Mode: paymentData.txt_Payment_Mode || 'NEFT Bank Transfer',
       txt_Transaction_Id: paymentData.txt_Transaction_Id || `TXN${Date.now().toString().slice(-8)}`,
       txt_Payment_Status: 'Completed',
@@ -847,6 +1009,14 @@ export const mockApi = {
 
     db.tbl_Payment = db.tbl_Payment || [];
     db.tbl_Payment.push(newPayment);
+
+    if (db.tbl_Purchase) {
+      const targetPO = db.tbl_Purchase.find(p => Number(p.int_Purchase_Id) === Number(paymentData.int_Purchase_Id));
+      if (targetPO) {
+        targetPO.txt_Status = 'Completed';
+        targetPO.txt_Payment_Status = 'Completed';
+      }
+    }
 
     saveDB(db);
     return newPayment;

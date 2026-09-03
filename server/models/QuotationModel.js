@@ -3,7 +3,19 @@ import pool from '../config/db.js';
 export const QuotationModel = {
   async getAll() {
     const [quotations] = await pool.query(`
-      SELECT q.*, s.txt_Supplier_Name, r.txt_Request_Code 
+      SELECT q.*, 
+             s.txt_Supplier_Name, 
+             s.txt_Supplier_Name AS txt_Store_Name,
+             s.txt_Contact_Person, 
+             s.txt_Contact_Person AS txt_Owner_Name,
+             s.txt_Email, 
+             s.txt_Phone, 
+             s.txt_GSTIN,
+             s.txt_GSTIN AS txt_GST_Number,
+             s.dbl_Rating, 
+             s.txt_City, 
+             s.txt_State, 
+             r.txt_Request_Code 
       FROM tbl_Quotation q
       LEFT JOIN tbl_Supplier s ON q.int_Supplier_Id = s.int_Supplier_Id
       LEFT JOIN tbl_Inventory_Request r ON q.int_Request_Id = r.int_Request_Id

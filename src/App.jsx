@@ -56,7 +56,7 @@ const AppContent = () => {
     if (role) {
       try {
         localStorage.setItem(`app_active_tab_${role}`, newTab);
-      } catch (e) {}
+      } catch (e) { }
     }
     if (options.pushHistory !== false) {
       const newHash = `#${newTab}`;

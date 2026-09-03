@@ -6,6 +6,13 @@
   padding: 0;
 }
 
+html, body {
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-family);
   background: var(--color-bg-gradient);
@@ -22,6 +29,7 @@ h1, h2, h3, h4, h5, h6 {
 
 #root {
   min-height: 100vh;
+  overflow-y: visible;
 }
 
 /* Layout */
@@ -30,6 +38,8 @@ h1, h2, h3, h4, h5, h6 {
   min-height: 100vh;
   background: var(--color-bg-gradient);
   background-attachment: fixed;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .main-layout {
@@ -39,6 +49,7 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   min-height: 100vh;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: visible;
 }
 
 .main-content {
@@ -47,6 +58,7 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: var(--topbar-height);
   max-width: 1440px;
   width: 100%;
+  overflow-y: visible;
 }
 
 /* Page Header */
@@ -846,6 +858,15 @@ h1, h2, h3, h4, h5, h6 {
     flex-direction: column !important;
     align-items: stretch !important;
   }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-animation {
+  animation: spin 1s linear infinite;
 }
 
 

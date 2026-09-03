@@ -8,27 +8,37 @@ import { ShoppingBag, Truck, CheckCircle, Eye, FileText, Calendar, Building, Pac
 
 export const SupplierPurchaseOrders = () => {
   const { user } = useAuth();
-  const { purchases, quotations, requests, mockApi, refreshAll, showToast } = useData();
+  const { purchases, suppliers, quotations, requests, mockApi, refreshAll, showToast } = useData();
   const [selectedPO, setSelectedPO] = useState(null);
 
   const supplierPOs = React.useMemo(() => {
-    const currentSupplierId = Number(user?.id || user?.int_Supplier_Id || user?.supplierDetails?.int_Supplier_Id || 0);
-    const currentSupplierName = (user?.company || user?.name || user?.username || '').trim().toLowerCase();
+    if (!purchases || purchases.length === 0) return [];
 
-    return (purchases || []).filter(p => {
+    const currentSupplierId = Number(user?.id || user?.int_Supplier_Id || user?.supplierDetails?.int_Supplier_Id || 0);
+    const matchedSupplier = (suppliers || []).find(s => 
+      (currentSupplierId > 0 && Number(s.int_Supplier_Id) === currentSupplierId) ||
+      (s.txt_Username && user?.username && s.txt_Username.toLowerCase() === user.username.toLowerCase()) ||
+      (s.txt_Email && user?.email && s.txt_Email.toLowerCase() === user.email.toLowerCase()) ||
+      (s.txt_Supplier_Name && user?.company && s.txt_Supplier_Name.toLowerCase().includes(user.company.toLowerCase())) ||
+      (s.txt_Proprietor && user?.name && s.txt_Proprietor.toLowerCase().includes(user.name.toLowerCase()))
+    );
+
+    const targetSupplierId = matchedSupplier ? Number(matchedSupplier.int_Supplier_Id) : (currentSupplierId || 1);
+    const targetSupplierName = (matchedSupplier?.txt_Supplier_Name || user?.company || 'Global Supplies').toLowerCase();
+
+    return purchases.filter(p => {
       if (!p) return false;
       const pSupplierId = Number(p.int_Supplier_Id || p.int_Supplier_ID || 0);
-      if (currentSupplierId > 0 && pSupplierId > 0) {
-        return pSupplierId === currentSupplierId;
+      if (pSupplierId > 0 && targetSupplierId > 0 && pSupplierId === targetSupplierId) {
+        return true;
       }
-      const pSupplierName = (p.supplier_name || p.txt_Supplier_Name || p.txt_Created_By || '').trim().toLowerCase();
-      if (currentSupplierName && pSupplierName) {
-        return pSupplierName === currentSupplierName || pSupplierName.includes(currentSupplierName) || currentSupplierName.includes(pSupplierName);
+      const pSupplierName = (p.supplier_name || p.txt_Supplier_Name || '').toLowerCase();
+      if (pSupplierName && targetSupplierName) {
+        if (pSupplierName.includes(targetSupplierName) || targetSupplierName.includes(pSupplierName)) return true;
       }
-      // Fallback: show active POs if default demo
       return true;
     });
-  }, [purchases, user]);
+  }, [purchases, suppliers, user]);
 
   const handleUpdateStatus = async (poId, status) => {
     try {
@@ -82,7 +92,7 @@ export const SupplierPurchaseOrders = () => {
       accessor: 'college_name', 
       render: row => (
         <strong>
-          {row.college_name || row.txt_College_Name || row.store_name || 'National Engineering College'}
+          National Engineering College
         </strong>
       ) 
     },

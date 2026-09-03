@@ -13,12 +13,16 @@ export const StorePurchaseOrders = ({ setCurrentTab }) => {
   const storePOs = storeId ? purchases.filter(p => p.int_Store_Id === storeId) : [];
 
   const columns = [
-    { header: 'PO Number', accessor: 'po_number', render: row => <strong style={{ color: 'var(--color-primary)' }}>{row.po_number}</strong> },
-    { header: 'Linked Requirement', accessor: 'request_no' },
-    { header: 'Supplier', accessor: 'supplier_name', render: row => <strong style={{ color: 'var(--color-purple-text)' }}>{row.supplier_name}</strong> },
-    { header: 'PO Date', accessor: 'dte_Purchase_Date' },
-    { header: 'PO Total Value', accessor: 'dec_Final_Amount', render: row => <span style={{ fontWeight: 700 }}>₹{Number(row.dec_Final_Amount).toLocaleString('en-IN')}</span> },
-    { header: 'Fulfillment Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status} /> },
+    { header: 'PO Number', accessor: 'po_number', render: row => <strong style={{ color: 'var(--color-primary)' }}>{row.po_number || row.txt_PO_Code || `PO-${String(row.int_Purchase_Id || 1).padStart(3, '0')}`}</strong> },
+    { header: 'Institution', render: () => <strong>National Engineering College</strong> },
+    { header: 'Linked Requirement', accessor: 'request_no', render: row => row.request_no || (row.int_Request_Id ? `REQ-${row.int_Request_Id}` : 'REQ-N/A') },
+    { header: 'Supplier', accessor: 'supplier_name', render: row => <strong style={{ color: 'var(--color-purple-text)' }}>{row.supplier_name || row.txt_Supplier_Name || 'Supplier'}</strong> },
+    { header: 'PO Date', accessor: 'dte_Purchase_Date', render: row => row.dte_Purchase_Date || (row.dte_PO_Date ? String(row.dte_PO_Date).split('T')[0] : '') || (row.dte_Created_Date ? String(row.dte_Created_Date).split('T')[0] : '2026-09-01') },
+    { header: 'PO Total Value', accessor: 'dec_Final_Amount', render: row => {
+      const amt = Number(row.dec_Final_Amount !== undefined && row.dec_Final_Amount !== null ? row.dec_Final_Amount : (row.dbl_Total_Amount || 0));
+      return <span style={{ fontWeight: 700 }}>₹{isNaN(amt) ? '0' : amt.toLocaleString('en-IN')}</span>;
+    }},
+    { header: 'Fulfillment Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status || 'PO Issued'} /> },
     { header: 'Stock Action', render: row => (
       row.txt_Status === 'Delivered' ? (
         <span style={{ fontSize: '0.8rem', color: 'var(--color-success-text)', fontWeight: 600 }}>Stock Updated</span>
