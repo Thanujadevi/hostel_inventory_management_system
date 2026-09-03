@@ -133,17 +133,19 @@ async function autoInitDatabase() {
       `);
     } catch (reqDedupErr) {}
 
-    // Ensure default admin user exists
+    // Ensure default admin user 24104063@nec.edu.in is guaranteed to exist in database
     try {
-      const [adminRows] = await initConn.query('SELECT * FROM tbl_Admin WHERE int_Admin_Id = 1');
-      if (adminRows.length === 0) {
-        await initConn.query(
-          `INSERT INTO tbl_Admin 
-            (int_Admin_Id, txt_Admin_Code, txt_Admin_Name, txt_Email, txt_Password, txt_Role, txt_Active, dte_Created_Date, txt_Created_By) 
-          VALUES 
-            (1, 'ADM001', 'Chief Warden / Admin', '24104063@nec.edu.in', 'admin', 'Chief Warden / Admin', 'Y', NOW(), 'System')`
-        );
-      }
+      await initConn.query(
+        `INSERT INTO tbl_Admin 
+          (int_Admin_Id, txt_Admin_Code, txt_Admin_Name, txt_Email, txt_Password, txt_Role, txt_Active, dte_Created_Date, txt_Created_By) 
+        VALUES 
+          (1, 'ADM001', 'Chief Warden / Admin', '24104063@nec.edu.in', 'admin', 'Chief Warden / Admin', 'Y', NOW(), 'System')
+        ON DUPLICATE KEY UPDATE 
+          txt_Email = '24104063@nec.edu.in',
+          txt_Admin_Name = 'Chief Warden / Admin',
+          txt_Active = 'Y';`
+      );
+      console.log("✅ Verified admin email 24104063@nec.edu.in in MySQL tbl_Admin database.");
     } catch (adminErr) {
       console.warn(`⚠️ Default admin creation notice: ${adminErr.message}`);
     }

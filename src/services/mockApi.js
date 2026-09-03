@@ -137,6 +137,21 @@ const getDB = () => {
   }
   try {
     const db = JSON.parse(data);
+    if (!db.tbl_Admin || !Array.isArray(db.tbl_Admin) || !db.tbl_Admin.some(a => a.txt_Email === '24104063@nec.edu.in')) {
+      db.tbl_Admin = db.tbl_Admin || [];
+      db.tbl_Admin.unshift({
+        int_Admin_Id: 1,
+        txt_Admin_Code: "ADM001",
+        txt_Admin_Name: "Chief Warden / Admin",
+        txt_Email: "24104063@nec.edu.in",
+        txt_Password: "admin",
+        txt_Role: "Chief Warden / Admin",
+        txt_Active: "Y",
+        dte_Created_Date: "2026-08-31",
+        txt_Created_By: "System"
+      });
+      saveDB(db);
+    }
     if (!db.tbl_Purchase || !Array.isArray(db.tbl_Purchase) || db.tbl_Purchase.length === 0) {
       db.tbl_Purchase = initialSeedData.tbl_Purchase;
       saveDB(db);
