@@ -11,9 +11,26 @@ import {
 export const AdminDashboard = ({ setCurrentTab }) => {
   const { requests, quotations, purchases, items, stores, suppliers, requirementPeriod, togglePeriodStatus, isRequirementWindowActive } = useData();
 
-  const pendingRequests = requests.filter(r => r.txt_Status === 'Pending');
-  const openQuotations = requests.filter(r => r.txt_Status === 'Open for Quotation');
-  const activePOs = purchases.filter(p => p.txt_Status === 'Approved');
+  const pendingRequests = requests.filter(r => {
+    const status = (r.txt_Status || '').toLowerCase();
+    return status === 'pending' || status === 'pending approval';
+  });
+
+  // Clear quotes that have already been processed into Purchase Orders from Open Price Quotes
+  const openQuotations = requests.filter(r => {
+    const status = (r.txt_Status || '').toLowerCase();
+    const isProcessed = ['approved', 'po issued', 'delivered', 'completed', 'rejected'].includes(status);
+    const hasPO = (purchases || []).some(p => 
+      Number(p.int_Request_Id) === Number(r.int_Request_Id) ||
+      String(p.request_no) === String(r.txt_Request_No || r.txt_Request_Code)
+    );
+    return !isProcessed && !hasPO;
+  });
+
+  const activePOs = purchases.filter(p => {
+    const status = (p.txt_Status || '').toLowerCase();
+    return ['po issued', 'approved', 'delivered', 'dispatched', 'shipped'].includes(status);
+  });
   const lowStockItems = items.filter(i => (i.int_quantity_in_hand || 0) < 15);
   const windowActive = isRequirementWindowActive();
 

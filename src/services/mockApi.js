@@ -41,8 +41,8 @@ const initialSeedData = {
     { int_Item_Id: 2, txt_Item_Code: 'ITM002', txt_Item_Name: 'LED Tube Light 20W', int_Category_Id: 2, txt_Category_Name: 'Electricals & Plumbing', dec_Unit_Price: 350, txt_Unit: 'Nos', int_quantity_in_hand: 120 }
   ],
   tbl_Inventory_Request: [
-    { int_Request_Id: 1, txt_Request_No: 'REQ-0001', int_Store_Id: 1, store_name: 'Boys Hostel Store 1', txt_Status: 'Approved', dte_Request_Date: '2026-08-25', txt_Period: 'August 2026', dec_Est_Budget: 25000 },
-    { int_Request_Id: 2, txt_Request_No: 'REQ-0002', int_Store_Id: 1, store_name: 'Boys Hostel Store 1', txt_Status: 'Approved', dte_Request_Date: '2026-08-28', txt_Period: 'August 2026', dec_Est_Budget: 15000 }
+    { int_Request_Id: 1, txt_Request_No: 'REQ-0001', int_Store_Id: 1, store_name: 'Boys Hostel Store 1', txt_Status: 'PO Issued', dte_Request_Date: '2026-08-25', txt_Period: 'August 2026', dec_Est_Budget: 25000 },
+    { int_Request_Id: 2, txt_Request_No: 'REQ-0002', int_Store_Id: 1, store_name: 'Boys Hostel Store 1', txt_Status: 'PO Issued', dte_Request_Date: '2026-08-28', txt_Period: 'August 2026', dec_Est_Budget: 15000 }
   ],
   tbl_Request_Item: [],
   tbl_Quotation: [
@@ -742,7 +742,7 @@ export const mockApi = {
     const reqId = quotation ? quotation.int_Request_Id : 1;
     const requirement = (db.tbl_Inventory_Request || []).find(r => r.int_Request_Id === reqId);
     if (requirement) {
-      requirement.txt_Status = 'Approved';
+      requirement.txt_Status = 'PO Issued';
     }
 
     const supplier = quotation ? (db.tbl_Supplier || []).find(s => s.int_Supplier_Id === quotation.int_Supplier_Id) : null;

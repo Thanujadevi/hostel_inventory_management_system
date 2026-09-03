@@ -18,11 +18,21 @@ export const AdminPayments = () => {
   const [gatewayProcessing, setGatewayProcessing] = useState(false);
   const [gatewayTab, setGatewayTab] = useState('upi');
 
+  const calculatePreferenceAmount = (totalAmount, pref) => {
+    const total = Number(totalAmount || 0);
+    if (!pref || pref.includes('100%')) return total;
+    if (pref.includes('50%')) return Math.round(total * 0.5);
+    if (pref.includes('30%')) return Math.round(total * 0.3);
+    if (pref.includes('70%')) return Math.round(total * 0.7);
+    return total;
+  };
+
   const [formData, setFormData] = useState({
     txt_Payment_No: '',
     int_Purchase_Id: purchases[0]?.int_Purchase_Id || 1,
     dte_Payment_Date: new Date().toISOString().split('T')[0],
     dec_Payment_Amount: purchases[0]?.dec_Final_Amount || 1000,
+    txt_Payment_Preference: '100% Full Payment (Post-Delivery Settlement)',
     txt_Payment_Mode: 'NEFT Bank Transfer',
     txt_Transaction_Id: `TXN${Date.now().toString().slice(-8)}`,
     txt_Remarks: 'Full payment released upon store receipt confirmation'
@@ -31,16 +41,20 @@ export const AdminPayments = () => {
   const [gatewayData, setGatewayData] = useState({
     int_Purchase_Id: purchases[0]?.int_Purchase_Id || 1,
     dec_Payment_Amount: purchases[0]?.dec_Final_Amount || 5200,
+    txt_Payment_Preference: '100% Full Payment (Post-Delivery Settlement)',
     paymentMethod: 'UPI'
   });
 
   const openRecordModal = () => {
     const firstPO = purchases[0];
+    const poTotal = firstPO ? (firstPO.dec_Final_Amount || firstPO.dbl_Total_Amount || 1000) : 1000;
+    const pref = '100% Full Payment (Post-Delivery Settlement)';
     setFormData({
       txt_Payment_No: generatePaymentCode(payments),
       int_Purchase_Id: firstPO?.int_Purchase_Id || 1,
       dte_Payment_Date: new Date().toISOString().split('T')[0],
-      dec_Payment_Amount: firstPO ? firstPO.dec_Final_Amount : 1000,
+      dec_Payment_Amount: calculatePreferenceAmount(poTotal, pref),
+      txt_Payment_Preference: pref,
       txt_Payment_Mode: 'NEFT Bank Transfer',
       txt_Transaction_Id: `TXN${Date.now().toString().slice(-8)}`,
       txt_Remarks: 'Full payment released upon store receipt confirmation'
@@ -50,9 +64,12 @@ export const AdminPayments = () => {
 
   const openGatewayModal = () => {
     const firstPO = purchases[0];
+    const poTotal = firstPO ? (firstPO.dec_Final_Amount || firstPO.dbl_Total_Amount || 5200) : 5200;
+    const pref = '100% Full Payment (Post-Delivery Settlement)';
     setGatewayData({
       int_Purchase_Id: firstPO?.int_Purchase_Id || 1,
-      dec_Payment_Amount: firstPO ? firstPO.dec_Final_Amount : 5200,
+      dec_Payment_Amount: calculatePreferenceAmount(poTotal, pref),
+      txt_Payment_Preference: pref,
       paymentMethod: 'UPI'
     });
     setIsGatewayOpen(true);
@@ -60,20 +77,49 @@ export const AdminPayments = () => {
 
   const handlePOSelect = (poId) => {
     const po = purchases.find(p => p.int_Purchase_Id === Number(poId));
-    setFormData({
-      ...formData,
+    const poTotal = po ? (po.dec_Final_Amount || po.dbl_Total_Amount || 0) : 0;
+    const pref = formData.txt_Payment_Preference || '100% Full Payment (Post-Delivery Settlement)';
+    const newAmt = calculatePreferenceAmount(poTotal, pref);
+    setFormData(prev => ({
+      ...prev,
       int_Purchase_Id: Number(poId),
-      dec_Payment_Amount: po ? po.dec_Final_Amount : 0
-    });
+      dec_Payment_Amount: newAmt
+    }));
   };
 
   const handleGatewayPOSelect = (poId) => {
     const po = purchases.find(p => p.int_Purchase_Id === Number(poId));
-    setGatewayData({
-      ...gatewayData,
+    const poTotal = po ? (po.dec_Final_Amount || po.dbl_Total_Amount || 0) : 0;
+    const pref = gatewayData.txt_Payment_Preference || '100% Full Payment (Post-Delivery Settlement)';
+    const newAmt = calculatePreferenceAmount(poTotal, pref);
+    setGatewayData(prev => ({
+      ...prev,
       int_Purchase_Id: Number(poId),
-      dec_Payment_Amount: po ? po.dec_Final_Amount : 0
-    });
+      dec_Payment_Amount: newAmt
+    }));
+  };
+
+  const handlePreferenceChange = (prefValue, isGateway = false) => {
+    if (!isGateway) {
+      const po = purchases.find(p => p.int_Purchase_Id === Number(formData.int_Purchase_Id));
+      const poTotal = po ? (po.dec_Final_Amount || po.dbl_Total_Amount || 0) : 0;
+      const newAmt = calculatePreferenceAmount(poTotal, prefValue);
+      setFormData(prev => ({
+        ...prev,
+        txt_Payment_Preference: prefValue,
+        dec_Payment_Amount: newAmt,
+        txt_Remarks: `${prefValue} for ${po?.po_number || 'PO'}`
+      }));
+    } else {
+      const po = purchases.find(p => p.int_Purchase_Id === Number(gatewayData.int_Purchase_Id));
+      const poTotal = po ? (po.dec_Final_Amount || po.dbl_Total_Amount || 0) : 0;
+      const newAmt = calculatePreferenceAmount(poTotal, prefValue);
+      setGatewayData(prev => ({
+        ...prev,
+        txt_Payment_Preference: prefValue,
+        dec_Payment_Amount: newAmt
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -258,6 +304,34 @@ export const AdminPayments = () => {
             </select>
           </div>
 
+          <div className="form-group" style={{ marginBottom: '16px' }}>
+            <label className="form-label" style={{ fontWeight: 700 }}>Payment Terms & Preference (Calculates Amount Automatically)</label>
+            <select
+              className="form-select"
+              value={formData.txt_Payment_Preference || '100% Full Payment (Post-Delivery Settlement)'}
+              onChange={e => handlePreferenceChange(e.target.value, false)}
+            >
+              <option value="100% Full Payment (Post-Delivery Settlement)">
+                100% Full Payment (Post-Delivery Settlement)
+              </option>
+              <option value="50% Advance Payment">
+                50% Advance Payment (Initial Deposit)
+              </option>
+              <option value="50% Final Balance Payment">
+                50% Final Balance Payment (On Delivery)
+              </option>
+              <option value="30% Advance Payment">
+                30% Advance Payment (Initial Booking)
+              </option>
+              <option value="70% Balance Payment">
+                70% Balance Payment (On Delivery)
+              </option>
+              <option value="Custom / Partial Payment">
+                Custom / Partial Payment Amount
+              </option>
+            </select>
+          </div>
+
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Payment Amount (₹)</label>
@@ -373,16 +447,29 @@ export const AdminPayments = () => {
 
           {/* Payment Timing & Terms Preference */}
           <div className="form-group" style={{ marginBottom: '16px' }}>
-            <label className="form-label" style={{ fontWeight: 700 }}>Payment Terms & Timing Preference</label>
-            <select className="form-select" defaultValue="Post-Delivery Settlement (100% Released After Goods Receipt)">
-              <option value="Post-Delivery Settlement (100% Released After Goods Receipt)">
-                Post-Delivery Settlement (100% Released After Store Goods Receipt Verification)
+            <label className="form-label" style={{ fontWeight: 700 }}>Payment Terms & Preference (Calculates Amount Automatically)</label>
+            <select
+              className="form-select"
+              value={gatewayData.txt_Payment_Preference || '100% Full Payment (Post-Delivery Settlement)'}
+              onChange={e => handlePreferenceChange(e.target.value, true)}
+            >
+              <option value="100% Full Payment (Post-Delivery Settlement)">
+                100% Full Payment (Post-Delivery Settlement)
               </option>
-              <option value="50% Advance & 50% Post-Delivery">
-                50% Advance & 50% Post-Delivery Settlement
+              <option value="50% Advance Payment">
+                50% Advance Payment (Initial Deposit)
               </option>
-              <option value="Net 30-Day Credit Terms">
-                Net 30-Day Credit Terms (Invoice Settlement)
+              <option value="50% Final Balance Payment">
+                50% Final Balance Payment (On Delivery)
+              </option>
+              <option value="30% Advance Payment">
+                30% Advance Payment (Initial Booking)
+              </option>
+              <option value="70% Balance Payment">
+                70% Balance Payment (On Delivery)
+              </option>
+              <option value="Custom / Partial Payment">
+                Custom / Partial Payment Amount
               </option>
             </select>
           </div>

@@ -37,6 +37,7 @@ export const AdminRequirements = ({ currentTab }) => {
   const { 
     requests, 
     items, 
+    purchases,
     stores,
     categories,
     requirementPeriod, 
@@ -255,18 +256,27 @@ export const AdminRequirements = ({ currentTab }) => {
   const consolidatedDemands = useMemo(() => {
     const safeRequests = Array.isArray(requests) ? requests : [];
     const safeItems = Array.isArray(items) ? items : [];
+    const safePurchases = Array.isArray(purchases) ? purchases : [];
 
     const targetRequests = safeRequests.filter(req => {
       if (!req) return false;
+      const s = String(req.txt_Status || '').toLowerCase();
+
+      // Exclude requests that are already converted into Purchase Orders, delivered, completed, or rejected!
+      const isProcessed = ['po issued', 'delivered', 'completed', 'rejected'].includes(s);
+      const hasPO = safePurchases.some(p => 
+        Number(p.int_Request_Id) === Number(req.int_Request_Id) ||
+        String(p.request_no) === String(req.txt_Request_No || req.txt_Request_Code)
+      );
+
+      if (isProcessed || hasPO) return false;
+
       let statusOk = true;
       if (conSolStatusFilter === 'ACCEPTED') {
-        const s = String(req.txt_Status || '').toLowerCase();
         statusOk = s.includes('accept') || s.includes('approve') || s.includes('open') || s.includes('verified');
       } else if (conSolStatusFilter === 'PENDING') {
-        const s = String(req.txt_Status || '').toLowerCase();
         statusOk = s.includes('pending');
       } else if (conSolStatusFilter === 'REJECTED') {
-        const s = String(req.txt_Status || '').toLowerCase();
         statusOk = s.includes('reject');
       }
 
@@ -374,8 +384,14 @@ export const AdminRequirements = ({ currentTab }) => {
       const b = Number(row.dec_Budget || row.items?.reduce((sum, i) => sum + (Number(i.dec_Required_Qty || i.int_Requested_Quantity || i.int_Quantity || i.quantity || 0) * Number(i.dec_Last_Purchase_Price || i.dbl_Unit_Price || 50)), 0) || 0);
       return <span style={{ fontWeight: 700 }}>₹{b.toLocaleString('en-IN')}</span>;
     }},
-    { header: 'Items Count', accessor: 'items', render: row => `${row.items?.length || 0} Items` },
-    { header: 'Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status} /> },
+    { header: 'Status', accessor: 'txt_Status', render: row => {
+      const linkedPO = (purchases || []).find(p => 
+        Number(p.int_Request_Id) === Number(row.int_Request_Id) ||
+        String(p.request_no) === String(row.txt_Request_No || row.txt_Request_Code)
+      );
+      const effectiveStatus = linkedPO ? (linkedPO.txt_Status || 'PO Issued') : row.txt_Status;
+      return <StatusBadge status={effectiveStatus} />;
+    }},
     { header: 'Actions', render: row => (
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <button className="btn btn-primary btn-sm" onClick={() => handleOpenDetail(row)}>

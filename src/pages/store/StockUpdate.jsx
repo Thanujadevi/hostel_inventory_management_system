@@ -79,8 +79,13 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
         await mockApi.rateSupplier(currentPO.supplier_name, supplierRating);
       }
       showToast(`Stock successfully verified & updated in ${currentStore?.name || 'Store'} inventory!`, 'success');
+      setReceiptRemarks('');
+      setSupplierRating(5);
+      setReceivedMap({});
       await refreshAll();
-      setCurrentTab('inventory');
+      if (typeof setCurrentTab === 'function') {
+        setCurrentTab('inventory');
+      }
     } catch (err) {
       console.error("Error updating stock:", err);
       showToast("Error updating stock quantity", "error");
