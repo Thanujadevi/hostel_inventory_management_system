@@ -19,8 +19,10 @@ class ErrorBoundary extends React.Component {
 
   handleReset = () => {
     try {
-      localStorage.removeItem('hostel_ims_auth_v5');
+      localStorage.clear();
+      sessionStorage.clear();
     } catch (e) {}
+    window.location.href = window.location.origin + '/#login';
     window.location.reload();
   };
 
@@ -42,15 +44,30 @@ class ErrorBoundary extends React.Component {
             borderRadius: '16px',
             border: '1px solid #e2e8f0',
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            maxWidth: '500px',
+            maxWidth: '540px',
             textAlign: 'center'
           }}>
             <h2 style={{ color: '#0f172a', marginBottom: '12px', fontSize: '1.4rem' }}>
               Hostel Inventory System
             </h2>
-            <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '24px', lineHeight: 1.5 }}>
-              The application encountered a session or rendering issue. Please click below to refresh your session.
+            <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '16px', lineHeight: 1.5 }}>
+              The application encountered a session or rendering issue.
             </p>
+            {this.state.error && (
+              <div style={{
+                backgroundColor: '#fef2f2',
+                color: '#dc2626',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                marginBottom: '20px',
+                textAlign: 'left',
+                fontFamily: 'monospace',
+                wordBreak: 'break-word'
+              }}>
+                {String(this.state.error?.message || this.state.error)}
+              </div>
+            )}
             <button
               onClick={this.handleReset}
               style={{
@@ -64,7 +81,7 @@ class ErrorBoundary extends React.Component {
                 cursor: 'pointer'
               }}
             >
-              Refresh Application Session
+              Reset Session & Go to Login
             </button>
           </div>
         </div>

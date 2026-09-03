@@ -135,7 +135,6 @@ export const Login = () => {
             }
           }
         });
-        // Triggers the exact Google Account Chooser window showing all logged in accounts on device
         tokenClient.requestAccessToken({ prompt: 'select_account' });
       } catch (err) {
         console.warn("OAuth Client init failed, opening fallback modal:", err);
@@ -160,18 +159,15 @@ export const Login = () => {
     }
   }, [otpSent]);
 
-  // Determine if input is a valid 10-digit Mobile Number (Indian mobile format: 6-9 followed by 9 digits)
   const isMobileNumber = (val) => {
     if (!val) return false;
     const trimmed = val.trim();
-    // Allow +91, 91, or 0 prefix
     const cleaned = trimmed.replace(/^(\+91|91|0)/, '').replace(/\D/g, '');
     return cleaned.length === 10 && /^[6-9]\d{9}$/.test(cleaned);
   };
 
   const isMobile = isMobileNumber(loginInput);
 
-  // Reset OTP state if user changes the phone number
   const handleInputChange = (e) => {
     setLoginInput(e.target.value);
     setError(null);
@@ -205,7 +201,6 @@ export const Login = () => {
         }
       }
     } else {
-      // Password Login (For Staff Usernames & Non-mobile numeric User ID/Code)
       const result = await loginWithCredentials(loginInput, password);
       if (!result.success) {
         setError(result.message);
@@ -341,6 +336,7 @@ export const Login = () => {
           </div>
         )}
 
+        {/* OTP Status Banner */}
         {/* Simulated OTP Banner */}
         {otpSent && (
           <div style={{

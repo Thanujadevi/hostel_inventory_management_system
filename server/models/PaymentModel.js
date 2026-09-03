@@ -3,7 +3,13 @@ import pool from '../config/db.js';
 export const PaymentModel = {
   async getAll() {
     const [rows] = await pool.query(`
-      SELECT pay.*, p.txt_PO_Code, s.txt_Supplier_Name 
+      SELECT pay.*, 
+             COALESCE(pay.txt_Payment_Code, CONCAT('PAY-', LPAD(pay.int_Payment_Id, 3, '0'))) AS txt_Payment_No,
+             pay.dbl_Amount AS dec_Payment_Amount,
+             pay.txt_Status AS txt_Payment_Status,
+             pay.txt_Transaction_Ref AS txt_Transaction_Id,
+             COALESCE(p.txt_PO_Code, CONCAT('PO-2026-', LPAD(p.int_Purchase_Id, 3, '0'))) AS po_number, 
+             s.txt_Supplier_Name AS supplier_name 
       FROM tbl_Payment pay
       LEFT JOIN tbl_Purchase p ON pay.int_Purchase_Id = p.int_Purchase_Id
       LEFT JOIN tbl_Supplier s ON p.int_Supplier_Id = s.int_Supplier_Id

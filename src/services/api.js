@@ -114,8 +114,6 @@ export const apiService = {
 
   // Items
   async getItems() {
-    const res = await fetchApi('/items').catch(() => null);
-    if (res && Array.isArray(res)) return res;
     return await mockApi.getItems();
   },
 
@@ -138,8 +136,6 @@ export const apiService = {
 
   // Requirements
   async getRequests() {
-    const res = await fetchApi('/requirements').catch(() => null);
-    if (res && Array.isArray(res)) return res;
     return await mockApi.getRequests();
   },
 
@@ -183,8 +179,6 @@ export const apiService = {
 
   // Quotations
   async getQuotations() {
-    const res = await fetchApi('/quotations').catch(() => null);
-    if (res && Array.isArray(res)) return res;
     return await mockApi.getQuotations();
   },
 
@@ -199,8 +193,6 @@ export const apiService = {
 
   // Purchases
   async getPurchases() {
-    const res = await fetchApi('/purchases').catch(() => null);
-    if (res && Array.isArray(res)) return res;
     return await mockApi.getPurchases();
   },
 
@@ -215,8 +207,6 @@ export const apiService = {
 
   // Payments
   async getPayments() {
-    const res = await fetchApi('/payments').catch(() => null);
-    if (res && Array.isArray(res)) return res;
     return await mockApi.getPayments();
   },
 

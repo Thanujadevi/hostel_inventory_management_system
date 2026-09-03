@@ -3,10 +3,25 @@ import pool from '../config/db.js';
 export const PurchaseModel = {
   async getAll() {
     const [rows] = await pool.query(`
-      SELECT p.*, s.txt_Supplier_Name, q.txt_Quotation_Code 
+      SELECT 
+        p.*, 
+        COALESCE(p.txt_PO_Code, CONCAT('PO-2026-', LPAD(p.int_Purchase_Id, 3, '0'))) AS po_number,
+        COALESCE(st.txt_Store_Name, 'Main Hostel Store') AS store_name,
+        COALESCE(s.txt_Supplier_Name, s.txt_Store_Name, 'Supplier') AS supplier_name,
+        COALESCE(s.txt_Phone, '+91 98765 43210') AS supplier_phone,
+        DATE_FORMAT(COALESCE(p.dte_PO_Date, p.dte_Created_Date), '%Y-%m-%d') AS dte_Purchase_Date,
+        COALESCE(p.dbl_Total_Amount, 0) AS dec_Final_Amount,
+        COALESCE(r.txt_Request_No, CONCAT('REQ-', LPAD(p.int_Request_Id, 3, '0'))) AS request_no,
+        COALESCE(q.dec_Total_Amount, p.dbl_Total_Amount, 0) AS quotation_amount,
+        COALESCE(q.dec_Transport_Cost, 0) AS transport_cost,
+        COALESCE(q.int_Delivery_Days, 3) AS delivery_days,
+        s.txt_Supplier_Name, 
+        q.txt_Quotation_Code 
       FROM tbl_Purchase p
       LEFT JOIN tbl_Supplier s ON p.int_Supplier_Id = s.int_Supplier_Id
+      LEFT JOIN tbl_Store st ON p.int_Store_Id = st.int_Store_Id
       LEFT JOIN tbl_Quotation q ON p.int_Quotation_Id = q.int_Quotation_Id
+      LEFT JOIN tbl_Inventory_Request r ON p.int_Request_Id = r.int_Request_Id
       ORDER BY p.int_Purchase_Id DESC
     `);
     return rows;
