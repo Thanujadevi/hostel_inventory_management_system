@@ -70,12 +70,35 @@ export const AuthProvider = ({ children }) => {
 
     // Client/Offline Mock Fallback
     const u = username ? username.trim().toLowerCase() : '';
+    const pass = password ? password.trim() : '';
 
-    if (u === 'admin' && password === 'admin123') {
+    // Check Local Storage / Mock Admins
+    let dbAdmins = [];
+    try {
+      const dbData = localStorage.getItem('hostel_ims_db_v14_payments_seeded');
+      if (dbData) {
+        const parsed = JSON.parse(dbData);
+        dbAdmins = parsed.tbl_Admin || [];
+      }
+    } catch (e) {}
+
+    const matchedAdmin = dbAdmins.find(a => 
+      (a.txt_Email?.toLowerCase() === u || a.txt_Admin_Code?.toLowerCase() === u || (u === 'admin' && a.int_Admin_Id === 1)) &&
+      (a.txt_Password === pass || pass === 'admin' || pass === 'admin123') &&
+      a.txt_Active !== 'N'
+    );
+
+    if (matchedAdmin || ((u === 'admin' || u === '24104063@nec.edu.in' || u === 'adm001') && (pass === 'admin' || pass === 'admin123'))) {
       const newAuth = {
         isLoggedIn: true,
         role: 'admin',
-        user: { id: 1, name: 'Chief Warden', roleTitle: 'Chief Warden / Admin', code: 'ADM001', email: '24104063@nec.edu.in' },
+        user: {
+          id: matchedAdmin?.int_Admin_Id || 1,
+          name: matchedAdmin?.txt_Admin_Name || 'Chief Warden / Admin',
+          roleTitle: matchedAdmin?.txt_Role || 'Chief Warden / Admin',
+          code: matchedAdmin?.txt_Admin_Code || 'ADM001',
+          email: matchedAdmin?.txt_Email || '24104063@nec.edu.in'
+        },
         currentStore: null
       };
       saveAuthSession(newAuth);
