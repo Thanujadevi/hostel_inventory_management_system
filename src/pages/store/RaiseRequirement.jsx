@@ -617,10 +617,7 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
                 <tbody>
                   {(() => {
                     const filtered = availableCatalogueItems.filter(item => {
-                      const matchesSearch = matchesWordPrefix(item.txt_Item_Name, catalogueSearch) ||
-                                            matchesWordPrefix(item.txt_Item_Code, catalogueSearch) ||
-                                            matchesWordPrefix(item.txt_Brand, catalogueSearch) ||
-                                            matchesWordPrefix(item.txt_Category, catalogueSearch);
+                      const matchesSearch = matchesWordPrefix(item, catalogueSearch);
                       const matchesCategory = selectedCatFilter === 'ALL' || item.txt_Category === selectedCatFilter;
                       return matchesSearch && matchesCategory;
                     });
@@ -717,10 +714,7 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
             {/* Catalogue Modal Pagination Bar */}
             {(() => {
               const filteredCount = availableCatalogueItems.filter(item => {
-                const matchesSearch = matchesWordPrefix(item.txt_Item_Name, catalogueSearch) ||
-                                      matchesWordPrefix(item.txt_Item_Code, catalogueSearch) ||
-                                      matchesWordPrefix(item.txt_Brand, catalogueSearch) ||
-                                      matchesWordPrefix(item.txt_Category, catalogueSearch);
+                const matchesSearch = matchesWordPrefix(item, catalogueSearch);
                 const matchesCategory = selectedCatFilter === 'ALL' || item.txt_Category === selectedCatFilter;
                 return matchesSearch && matchesCategory;
               }).length;

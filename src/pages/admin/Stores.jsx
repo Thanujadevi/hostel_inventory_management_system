@@ -5,6 +5,7 @@ import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { HighlightText } from '../../components/common/HighlightText';
 import { Building2, Plus, Edit, Trash2 } from 'lucide-react';
 import { generateStoreCode } from '../../utils/codeGenerator';
 
@@ -99,38 +100,38 @@ export const AdminStores = () => {
   };
 
   const columns = [
-    { header: 'Store Code', accessor: 'txt_Store_Code', render: row => <strong style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}>{row.txt_Store_Code}</strong> },
+    { header: 'Store Code', accessor: 'txt_Store_Code', render: (row, query) => <strong style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}><HighlightText text={row.txt_Store_Code} query={query} /></strong> },
     {
-      header: 'Store Name', accessor: 'txt_Store_Name', render: row => (
+      header: 'Store Name', accessor: 'txt_Store_Name', render: (row, query) => (
         <div>
-          <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{row.txt_Store_Name}</div>
+          <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}><HighlightText text={row.txt_Store_Name} query={query} /></div>
           <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.txt_Store_Type || 'Residential Hostel'}</div>
         </div>
       )
     },
     {
-      header: 'Location', accessor: 'txt_Location', render: row => (
+      header: 'Location', accessor: 'txt_Location', render: (row, query) => (
         <span style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>
-          {row.txt_Location || row.txt_Campus || 'Main Campus'}
+          <HighlightText text={row.txt_Location || row.txt_Campus || 'Main Campus'} query={query} />
         </span>
       )
     },
     {
-      header: 'In-Charge', accessor: 'txt_Incharge_Name', render: row => {
+      header: 'In-Charge', accessor: 'txt_Incharge_Name', render: (row, query) => {
         const inchargeName = row.txt_Incharge_Name || row.txt_Incharge || 'Store In-Charge';
         return (
           <div>
-            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{inchargeName}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.txt_Email}</div>
+            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}><HighlightText text={inchargeName} query={query} /></div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}><HighlightText text={row.txt_Email} query={query} /></div>
           </div>
         );
       }
     },
     {
-      header: 'Login Credentials', accessor: 'txt_Username', render: row => (
+      header: 'Login Credentials', accessor: 'txt_Username', render: (row, query) => (
         <div>
-          <div className="code-badge" style={{ display: 'inline-block', marginBottom: '2px' }}>User: {row.txt_Username || row.txt_Store_Code?.toLowerCase()}</div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Pass: {row.txt_Password || 'storepassword'}</div>
+          <div className="code-badge" style={{ display: 'inline-block', marginBottom: '2px' }}>User: <HighlightText text={row.txt_Username || row.txt_Store_Code?.toLowerCase()} query={query} /></div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Pass: storepassword</div>
         </div>
       )
     },

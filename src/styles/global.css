@@ -515,28 +515,95 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--color-success-text);
 }
 
-/* Print Stylesheet for Indent Report */
+/* Print & PDF Export Stylesheet (Strict 1-Page Output, No Duplication) */
 @media print {
-  body * {
-    visibility: hidden !important;
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
   }
-  .printable-indent-report, .printable-indent-report * {
-    visibility: visible !important;
-  }
-  .printable-indent-report {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
+
+  /* Reset HTML and Body for print */
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
     margin: 0 !important;
-    padding: 24px !important;
+    padding: 0 !important;
     background: #ffffff !important;
-    color: #111827 !important;
+    color: #0f172a !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide background elements, navigation, sidebars, page content behind modal, modal headers/footers */
+  .sidebar,
+  .topbar,
+  .main-content > .page-header,
+  .main-content > .kpi-grid,
+  .main-content > .filter-bar,
+  .main-content > .table-container,
+  .modal-header,
+  .modal-footer,
+  .no-print,
+  .toast-container,
+  .theme-toggle {
+    display: none !important;
+  }
+
+  /* Remove modal overlay offsets and fixed positioning */
+  .modal-overlay {
+    position: static !important;
+    display: block !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .modal-content {
+    position: static !important;
+    display: block !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    background: #ffffff !important;
     box-shadow: none !important;
     border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
   }
-  .no-print {
-    display: none !important;
+
+  .modal-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Printable Report container takes standard static layout (prevents position:fixed multi-page duplication) */
+  .printable-report {
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .printable-report * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 

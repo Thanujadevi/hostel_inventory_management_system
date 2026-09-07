@@ -3,6 +3,7 @@ import { useData } from '../../context/DataContext';
 import { Table } from '../../components/common/Table';
 import { Card } from '../../components/common/Card';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { HighlightText } from '../../components/common/HighlightText';
 import { Users as UsersIcon, UserCheck, Shield, Building2, Truck, Search, Mail, Phone, Lock } from 'lucide-react';
 import { matchesWordPrefix } from '../../utils/searchUtils';
 
@@ -71,7 +72,7 @@ export const AdminUsers = () => {
   // Combine all users
   const allUsers = useMemo(() => {
     return [...adminUsers, ...storeUsers, ...supplierUsers];
-  }, [storeUsers, supplierUsers]);
+  }, [adminUsers, storeUsers, supplierUsers]);
 
   // Filter Users
   const filteredUsers = useMemo(() => {
@@ -91,7 +92,7 @@ export const AdminUsers = () => {
     {
       header: 'User',
       accessor: 'name',
-      render: (row) => (
+      render: (row, query) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
             width: '38px',
@@ -109,9 +110,9 @@ export const AdminUsers = () => {
             {(row.name || 'U').charAt(0).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.9rem' }}>{row.name}</div>
+            <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.9rem' }}><HighlightText text={row.name} query={query} /></div>
             <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Mail size={12} /> {row.email}
+              <Mail size={12} /> <HighlightText text={row.email} query={query} />
             </div>
           </div>
         </div>
@@ -120,7 +121,7 @@ export const AdminUsers = () => {
     {
       header: 'Role / Designation',
       accessor: 'role',
-      render: (row) => (
+      render: (row, query) => (
         <span style={{
           fontSize: '0.78rem',
           fontWeight: 700,
@@ -130,27 +131,27 @@ export const AdminUsers = () => {
           color: row.type === 'admin' ? '#1d4ed8' : row.type === 'store' ? '#6d28d9' : '#15803d',
           border: `1px solid ${row.type === 'admin' ? '#bfdbfe' : row.type === 'store' ? '#ddd6fe' : '#bbf7d0'}`
         }}>
-          {row.role}
+          <HighlightText text={row.role} query={query} />
         </span>
       )
     },
     {
       header: 'Department / Entity',
       accessor: 'associated',
-      render: (row) => (
+      render: (row, query) => (
         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-          {row.associated}
+          <HighlightText text={row.associated} query={query} />
         </div>
       )
     },
     {
       header: 'Auth / Mobile',
       accessor: 'phone',
-      render: (row) => (
+      render: (row, query) => (
         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
           {row.type === 'supplier' ? (
             <>
-              <Phone size={13} color="var(--color-text-muted)" /> {row.phone}
+              <Phone size={13} color="var(--color-text-muted)" /> <HighlightText text={row.phone} query={query} />
             </>
           ) : (
             <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
@@ -269,9 +270,10 @@ export const AdminUsers = () => {
           columns={columns}
           data={filteredUsers}
           searchPlaceholder="Filter user records..."
-          emptyMessage="No user accounts found"
+          emptyMessage="No data found"
           pageSize={8}
           showSearch={false}
+          externalSearchTerm={searchTerm}
         />
       </div>
     </div>

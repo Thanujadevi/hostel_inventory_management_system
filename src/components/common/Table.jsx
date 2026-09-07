@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { matchesWordPrefix } from '../../utils/searchUtils';
+import { HighlightText } from './HighlightText';
 
 export const Table = ({ 
   columns = [], 
   data = [], 
   isLoading = false,
   searchPlaceholder = "Search records...", 
-  emptyMessage = "No matches found",
+  emptyMessage = "No data found",
   pageSize = 5,
-  showSearch = true 
+  showSearch = true,
+  externalSearchTerm = null
 }) => {
   const dataContext = useData();
   const contextLoading = dataContext?.loading || false;
@@ -19,17 +21,18 @@ export const Table = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
+  const activeSearchTerm = externalSearchTerm !== null ? externalSearchTerm : searchTerm;
   const safeData = Array.isArray(data) ? data : [];
 
   const filteredData = safeData.filter(row => {
     if (!row) return false;
-    return matchesWordPrefix(row, searchTerm);
+    return matchesWordPrefix(row, activeSearchTerm);
   });
 
   // Reset to page 1 when search term changes or data length changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, safeData.length]);
+  }, [activeSearchTerm, safeData.length]);
 
   // Pagination calculation (5 items per page)
   const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
@@ -91,7 +94,7 @@ export const Table = ({
                 <tr key={rowIdx}>
                   {columns.map((col, colIdx) => (
                     <td key={colIdx} style={{ textAlign: col.align || 'left' }}>
-                      {col.render ? col.render(row) : row[col.accessor]}
+                      {col.render ? col.render(row, activeSearchTerm) : <HighlightText text={row[col.accessor]} query={activeSearchTerm} />}
                     </td>
                   ))}
                 </tr>

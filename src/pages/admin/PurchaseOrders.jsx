@@ -3,6 +3,7 @@ import { useData } from '../../context/DataContext';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PrintableReport } from '../../components/common/PrintableReport';
 import { ShoppingBag, Eye, Printer, Truck, FileCheck } from 'lucide-react';
 
 export const AdminPurchaseOrders = () => {
@@ -50,7 +51,7 @@ export const AdminPurchaseOrders = () => {
     { header: 'Status', accessor: 'txt_Status', render: row => <StatusBadge status={row.txt_Status || 'PO Issued'} /> },
     { header: 'Actions', render: row => (
       <button className="btn btn-secondary btn-sm" onClick={() => setSelectedPO(row)}>
-        <Eye size={14} /> View Order
+        <Eye size={14} /> View / Print Order
       </button>
     )}
   ];
@@ -65,62 +66,34 @@ export const AdminPurchaseOrders = () => {
 
       <Table columns={columns} data={purchases} searchPlaceholder="Search orders by number, store, supplier..." />
 
-      {/* PO Detail View Modal */}
+      {/* Official PO Detail View & PDF Export Modal */}
       {selectedPO && (
-        <Modal
-          isOpen={true}
+        <PrintableReport
+          isOpen={!!selectedPO}
           onClose={() => setSelectedPO(null)}
-          title={`Order Details: ${selectedPO.po_number || selectedPO.txt_PO_Code || 'PO Detail'}`}
-          maxWidth="700px"
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: 'var(--color-surface-hover)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Institution</div>
-                <div style={{ fontWeight: 700, fontSize: '1rem' }}>National Engineering College</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Linked Req: {selectedPO.request_no || 'REQ-001'}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Supplier</div>
-                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-purple-text)' }}>{selectedPO.supplier_name || selectedPO.txt_Supplier_Name || 'Supplier'}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Date: {selectedPO.dte_Purchase_Date || (selectedPO.dte_PO_Date ? String(selectedPO.dte_PO_Date).split('T')[0] : '2026-09-01')}</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-              <div className="card" style={{ padding: '12px 16px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Items Subtotal</span>
-                <div style={{ fontWeight: 700, fontSize: '1rem' }}>₹{Number(selectedPO.quotation_amount || selectedPO.dec_Final_Amount || selectedPO.dbl_Total_Amount || 0).toLocaleString('en-IN')}</div>
-              </div>
-              <div className="card" style={{ padding: '12px 16px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Transport Charge</span>
-                <div style={{ fontWeight: 700, fontSize: '1rem' }}>₹{Number(selectedPO.transport_cost || 0).toLocaleString('en-IN')}</div>
-              </div>
-              <div className="card" style={{ padding: '12px 16px', backgroundColor: 'var(--color-primary-light)' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Grand Total</span>
-                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-primary)' }}>₹{Number(selectedPO.dec_Final_Amount || selectedPO.dbl_Total_Amount || 0).toLocaleString('en-IN')}</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--color-warning-bg)', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Truck size={20} color="var(--color-warning-text)" />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-warning-text)' }}>Delivery Status</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Expected delivery within {selectedPO.delivery_days || 3} days</div>
-                </div>
-              </div>
-              <StatusBadge status={selectedPO.txt_Status || 'PO Issued'} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-              <button className="btn btn-secondary" onClick={() => setSelectedPO(null)}>Close</button>
-              <button className="btn btn-primary" onClick={() => window.print()}>
-                <Printer size={16} /> Print Order
-              </button>
-            </div>
-          </div>
-        </Modal>
+          title={`OFFICIAL PURCHASE ORDER (${selectedPO.po_number || selectedPO.txt_PO_Code || 'PO-2026-001'})`}
+          subtitle={`Issued to vendor ${selectedPO.supplier_name || selectedPO.txt_Supplier_Name || 'Authorized Supplier'} for central hostel inventory supply.`}
+          reportCode={selectedPO.po_number || selectedPO.txt_PO_Code || 'PO-2026-001'}
+          date={selectedPO.dte_Purchase_Date || (selectedPO.dte_PO_Date ? String(selectedPO.dte_PO_Date).split('T')[0] : '2026-09-01')}
+          metadata={[
+            { label: 'Vendor / Supplier', value: selectedPO.supplier_name || selectedPO.txt_Supplier_Name || 'Authorized Supplier' },
+            { label: 'Linked Requirement', value: selectedPO.request_no || selectedPO.txt_Request_No || 'REQ-2026-001' },
+            { label: 'Expected Delivery', value: `Within ${selectedPO.delivery_days || 3} Days` },
+            { label: 'Order Status', value: selectedPO.txt_Status || 'PO Issued' }
+          ]}
+          summaryCards={[
+            { label: 'Items Subtotal', value: `₹${Number(selectedPO.quotation_amount || selectedPO.dec_Final_Amount || selectedPO.dbl_Total_Amount || 0).toLocaleString('en-IN')}`, color: '#1e3a8a', bg: '#eff6ff', border: '#bfdbfe' },
+            { label: 'Transport Charge', value: `₹${Number(selectedPO.transport_cost || 0).toLocaleString('en-IN')}`, color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe' },
+            { label: 'Grand Total Amount', value: `₹${Number(selectedPO.dec_Final_Amount || selectedPO.dbl_Total_Amount || 0).toLocaleString('en-IN')}`, color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' }
+          ]}
+          tableColumns={[
+            { header: 'Order Specification / Item', accessor: 'item_name', render: r => <strong>{r.item_name || selectedPO.po_number || 'Inventory Catalog Batch Items'}</strong> },
+            { header: 'Unit Price', accessor: 'unit_price', align: 'right', render: r => `₹${Number(r.unit_price || selectedPO.dec_Final_Amount || 0).toLocaleString('en-IN')}` },
+            { header: 'Order Amount', accessor: 'total', align: 'right', render: () => <strong>₹{Number(selectedPO.dec_Final_Amount || selectedPO.dbl_Total_Amount || 0).toLocaleString('en-IN')}</strong> }
+          ]}
+          tableData={[{ item_name: `Consolidated Hostel Stock Order Batch (${selectedPO.po_number || 'PO-2026-001'})`, unit_price: selectedPO.dec_Final_Amount }]}
+          showSignatures={true}
+        />
       )}
     </div>
   );

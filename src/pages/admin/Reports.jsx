@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { BarChart3, PieChart, Download, DollarSign, CheckCircle, Clock } from 'lucide-react';
+import { PrintableReport } from '../../components/common/PrintableReport';
 
 export const AdminReports = () => {
   const { purchases, categories, suppliers, payments } = useData();
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Total Procurement Expenditure from live Purchases & Payments
   const totalSpend = (Array.isArray(purchases) ? purchases : []).reduce((acc, p) => acc + Number(p.dec_Final_Amount || 0), 0);
@@ -53,6 +55,12 @@ export const AdminReports = () => {
     };
   });
 
+  const reportTableColumns = [
+    { header: 'Supplier Business / Vendor', accessor: 'supplier' },
+    { header: 'Approved POs', accessor: 'orders', align: 'center', render: r => `${r.orders} POs` },
+    { header: 'Total Spend (₹)', accessor: 'amount', align: 'right', render: r => `₹${Math.round(r.amount).toLocaleString('en-IN')}` }
+  ];
+
   return (
     <div>
       <div className="page-header">
@@ -62,7 +70,7 @@ export const AdminReports = () => {
             Live procurement metrics, category expenditures, and supplier transaction logs derived from database records.
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={() => window.print()}>
+        <button className="btn btn-primary" onClick={() => setIsReportModalOpen(true)}>
           <Download size={16} /> Export PDF Report
         </button>
       </div>
@@ -165,6 +173,25 @@ export const AdminReports = () => {
           </div>
         </div>
       </div>
+
+      {/* Official Executive PDF Report Modal */}
+      <PrintableReport
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        title="PROCUREMENT & FINANCIAL EXPENDITURE REPORT"
+        subtitle="Summary of central hostel inventory procurement, payments made, and vendor balances."
+        reportCode={`REP-${new Date().getFullYear()}-FIN-001`}
+        author="Central Inventory & Financial Accounts Division"
+        overviewText={`This report details the active hostel procurement status and supplier accounts ledger for National Engineering College. Total verified order spend across approved purchase orders stands at ₹${totalSpend.toLocaleString('en-IN')}, with ₹${totalPaid.toLocaleString('en-IN')} settled to vendors. Outstanding balance is currently tracked at ₹${pendingPayments.toLocaleString('en-IN')}. All vendor entries have been consolidated to guarantee zero duplicate records.`}
+        summaryCards={[
+          { label: 'Total Order Spend', value: `₹${totalSpend.toLocaleString('en-IN')}`, color: '#1e3a8a', bg: '#eff6ff', border: '#bfdbfe', subtitle: `${purchases.length} Purchase Orders` },
+          { label: 'Total Payments Settled', value: `₹${totalPaid.toLocaleString('en-IN')}`, color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0', subtitle: 'Ledger Disbursements' },
+          { label: 'Outstanding Balance', value: `₹${pendingPayments.toLocaleString('en-IN')}`, color: '#b45309', bg: '#fffbeb', border: '#fde68a', subtitle: 'Pending Supplier Invoices' }
+        ]}
+        tableColumns={reportTableColumns}
+        tableData={supplierSpend}
+        showSignatures={true}
+      />
     </div>
   );
 };

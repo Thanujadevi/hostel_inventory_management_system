@@ -5,6 +5,7 @@ import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { HighlightText } from '../../components/common/HighlightText';
 import { Package, FolderPlus, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { generateItemCode, generateCategoryCode } from '../../utils/codeGenerator';
 
@@ -146,21 +147,21 @@ export const AdminInventory = () => {
 
   // Columns Definitions
   const itemColumns = [
-    { header: 'Code', accessor: 'txt_Item_Code', render: row => <strong style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}>{row.txt_Item_Code}</strong> },
-    { header: 'Item Name', accessor: 'txt_Item_Name', render: row => (
-      <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{row.txt_Item_Name}</div>
+    { header: 'Code', accessor: 'txt_Item_Code', render: (row, query) => <strong style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}><HighlightText text={row.txt_Item_Code} query={query} /></strong> },
+    { header: 'Item Name', accessor: 'txt_Item_Name', render: (row, query) => (
+      <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}><HighlightText text={row.txt_Item_Name} query={query} /></div>
     )},
-    { header: 'Category', accessor: 'txt_Category', render: row => {
+    { header: 'Category', accessor: 'txt_Category', render: (row, query) => {
       const catName = row.txt_Category && row.txt_Category !== '--' 
         ? row.txt_Category 
         : (row.txt_Item_Code === 'ITM-003' ? 'Furniture & Fittings' : row.txt_Item_Code === 'ITM-002' ? 'Electrical Items' : 'Cleaning Supplies');
       return (
         <span className="category-badge">
-          {catName}
+          <HighlightText text={catName} query={query} />
         </span>
       );
     }},
-    { header: 'Unit', accessor: 'txt_Unit', render: row => <span style={{ color: 'var(--color-text-secondary)' }}>{row.txt_Unit || 'Pcs'}</span> },
+    { header: 'Unit', accessor: 'txt_Unit', render: (row, query) => <span style={{ color: 'var(--color-text-secondary)' }}><HighlightText text={row.txt_Unit || 'Pcs'} query={query} /></span> },
     { header: 'Last Purchase Price', accessor: 'dec_Last_Purchase_Price', render: row => <span style={{ fontWeight: 600 }}>₹{Number(row.dec_Last_Purchase_Price || 0).toFixed(2)}</span> },
     { header: 'Quantity in Hand', accessor: 'int_quantity_in_hand', render: row => {
       const qty = (typeof row.int_quantity_in_hand === 'number') ? row.int_quantity_in_hand : (row.int_Stock || 0);
@@ -191,9 +192,9 @@ export const AdminInventory = () => {
   ];
 
   const categoryColumns = [
-    { header: 'Code', accessor: 'txt_Category_Code', render: row => <strong>{row.txt_Category_Code}</strong> },
-    { header: 'Category Name', accessor: 'txt_Category_Name', render: row => <strong style={{ color: 'var(--color-text-primary)' }}>{row.txt_Category_Name}</strong> },
-    { header: 'Description', accessor: 'txt_Description' },
+    { header: 'Code', accessor: 'txt_Category_Code', render: (row, query) => <strong><HighlightText text={row.txt_Category_Code} query={query} /></strong> },
+    { header: 'Category Name', accessor: 'txt_Category_Name', render: (row, query) => <strong style={{ color: 'var(--color-text-primary)' }}><HighlightText text={row.txt_Category_Name} query={query} /></strong> },
+    { header: 'Description', accessor: 'txt_Description', render: (row, query) => <HighlightText text={row.txt_Description} query={query} /> },
     { header: 'Status', accessor: 'txt_status', render: row => <StatusBadge status={row.txt_status} /> },
     { header: 'Actions', render: row => (
       <div style={{ display: 'flex', gap: '8px' }}>

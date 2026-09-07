@@ -4,6 +4,7 @@ import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PrintableReport } from '../../components/common/PrintableReport';
 import { matchesWordPrefix } from '../../utils/searchUtils';
 import { 
   FileText, 
@@ -335,11 +336,7 @@ export const AdminRequirements = ({ currentTab }) => {
     }
 
     if (conSolSearch && conSolSearch.trim()) {
-      list = list.filter(p => 
-        matchesWordPrefix(p.product_name, conSolSearch) ||
-        matchesWordPrefix(p.product_code, conSolSearch) ||
-        matchesWordPrefix(p.category, conSolSearch)
-      );
+      list = list.filter(p => matchesWordPrefix(p, conSolSearch));
     }
 
     return list;
@@ -406,9 +403,7 @@ export const AdminRequirements = ({ currentTab }) => {
 
   const filteredCatalogItems = (Array.isArray(items) ? items : []).filter(item => {
     const itemCat = item.txt_Category || item.txt_Category_Name || '';
-    const matchesSearch = matchesWordPrefix(item.txt_Item_Name, catalogueSearch) ||
-                          matchesWordPrefix(item.txt_Item_Code, catalogueSearch) ||
-                          matchesWordPrefix(itemCat, catalogueSearch);
+    const matchesSearch = matchesWordPrefix(item, catalogueSearch);
     const matchesCat = selectedCategoryFilter === 'ALL' || itemCat === selectedCategoryFilter || item.txt_Category_Name === selectedCategoryFilter;
     return matchesSearch && matchesCat;
   });
@@ -1235,128 +1230,29 @@ export const AdminRequirements = ({ currentTab }) => {
       )}
 
       {/* Printable Consolidated Indent Report Modal */}
-      {isPrintIndentOpen && (
-        <Modal
-          isOpen={isPrintIndentOpen}
-          onClose={() => setIsPrintIndentOpen(false)}
-          title="Consolidated Requirement Indent Report"
-          size="lg"
-        >
-          <div className="printable-indent-report" style={{ padding: '16px' }}>
-            {/* Header section with 2-line summary description */}
-            <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid var(--color-border)', paddingBottom: '16px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                Hostel Inventory Management System
-              </h2>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '8px' }}>
-                Consolidated Requirement Procurement Indent Report
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, maxWidth: '650px', margin: '0 auto' }}>
-                Official consolidated inventory procurement demand aggregated across all hostel stores for <strong>{requirementPeriod?.txt_Month || 'August'} {requirementPeriod?.int_Year || 2026}</strong> cycle.<br />
-                Generated on <strong>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} at {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</strong> — Total Budget: <strong>₹{totalConsolidatedBudget.toLocaleString('en-IN')}</strong> across <strong>{totalConsolidatedUnits} total items ({consolidatedDemands.length} products)</strong>.
-              </p>
-            </div>
-
-            {/* Quick Summary Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', background: 'var(--color-bg-secondary, #f8fafc)', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--color-border)' }}>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Report Date & Time</span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>{new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Total Products</span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>{consolidatedDemands.length} Items</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Total Required Quantity</span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>{totalConsolidatedUnits} Units</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Est. Total Budget</span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-success-text)' }}>₹{totalConsolidatedBudget.toLocaleString('en-IN')}</strong>
-              </div>
-            </div>
-
-            {/* Table */}
-            <div className="table-container" style={{ marginBottom: '24px' }}>
-              <table className="table" style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'var(--color-bg-secondary, #f1f5f9)' }}>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center', width: '40px' }}>#</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)' }}>Product Details</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)' }}>Category</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center' }}>Consolidated Qty</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center' }}>Unit</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'right' }}>Est. Unit Price</th>
-                    <th style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'right' }}>Total Budget</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {consolidatedDemands.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
-                        No product requirements match your selected filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    consolidatedDemands.map((prod, index) => (
-                      <tr key={prod.item_id || index}>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center', fontWeight: 600 }}>{index + 1}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)' }}>
-                          <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{prod.product_name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Code: {prod.product_code}</div>
-                        </td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)' }}>{prod.category}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center', fontWeight: 700, color: 'var(--color-primary)' }}>
-                          {prod.total_required_qty}
-                        </td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'center' }}>{prod.unit}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'right' }}>₹{Number(prod.est_unit_price || 0).toLocaleString('en-IN')}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid var(--color-border)', textAlign: 'right', fontWeight: 700 }}>
-                          ₹{(prod.total_required_qty * prod.est_unit_price).toLocaleString('en-IN')}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-                <tfoot>
-                  <tr style={{ background: 'var(--color-bg-secondary, #f8fafc)', fontWeight: 700 }}>
-                    <td colSpan="3" style={{ padding: '10px 12px', border: '1px solid var(--color-border)', textAlign: 'right' }}>Grand Total:</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid var(--color-border)', textAlign: 'center', color: 'var(--color-primary)', fontSize: '0.9rem' }}>{totalConsolidatedUnits}</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid var(--color-border)' }}>Units</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid var(--color-border)' }}></td>
-                    <td style={{ padding: '10px 12px', border: '1px solid var(--color-border)', textAlign: 'right', color: 'var(--color-success-text)', fontSize: '0.95rem' }}>₹{totalConsolidatedBudget.toLocaleString('en-IN')}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            {/* Approval / Signatures Block */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '30px', paddingTop: '16px', borderTop: '1px dashed var(--color-border)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-              <div>
-                <div style={{ minHeight: '36px' }}></div>
-                <div style={{ borderTop: '1px solid var(--color-text-secondary)', paddingTop: '4px', fontWeight: 600 }}>Prepared By (Store Supervisor)</div>
-              </div>
-              <div>
-                <div style={{ minHeight: '36px' }}></div>
-                <div style={{ borderTop: '1px solid var(--color-text-secondary)', paddingTop: '4px', fontWeight: 600 }}>Verified By (Hostel Warden)</div>
-              </div>
-              <div>
-                <div style={{ minHeight: '36px' }}></div>
-                <div style={{ borderTop: '1px solid var(--color-text-secondary)', paddingTop: '4px', fontWeight: 600 }}>Approved By (Chief Warden / Admin)</div>
-              </div>
-            </div>
-
-            {/* Actions Bar (No Print) */}
-            <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
-              <button className="btn btn-secondary" onClick={() => setIsPrintIndentOpen(false)}>Close</button>
-              <button className="btn btn-primary" onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Printer size={16} /> Print / Export PDF
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <PrintableReport
+        isOpen={isPrintIndentOpen}
+        onClose={() => setIsPrintIndentOpen(false)}
+        title="CONSOLIDATED REQUIREMENT PROCUREMENT INDENT REPORT"
+        subtitle={`Official inventory procurement demand aggregated across all hostel stores for ${requirementPeriod?.txt_Month || 'August'} ${requirementPeriod?.int_Year || 2026} cycle.`}
+        reportCode={`INDENT-${requirementPeriod?.int_Year || 2026}-${String(requirementPeriod?.txt_Month || 'AUG').toUpperCase()}-001`}
+        author="Central Hostel Procurement Committee"
+        overviewText={`This consolidated procurement indent summarizes inventory demands received across all hostel stores for the ${requirementPeriod?.txt_Month || 'August'} ${requirementPeriod?.int_Year || 2026} period. A total of ${consolidatedDemands.length} unique products comprising ${totalConsolidatedUnits} total units have been verified with an estimated overall budget of ₹${totalConsolidatedBudget.toLocaleString('en-IN')}. All product demands have been deduplicated.`}
+        summaryCards={[
+          { label: 'Total Products', value: `${consolidatedDemands.length} Items`, color: '#1e3a8a', bg: '#eff6ff', border: '#bfdbfe' },
+          { label: 'Total Required Quantity', value: `${totalConsolidatedUnits} Units`, color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe' },
+          { label: 'Est. Total Budget', value: `₹${totalConsolidatedBudget.toLocaleString('en-IN')}`, color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' }
+        ]}
+        tableColumns={[
+          { header: 'Product Details', accessor: 'product_name', render: r => <div><strong style={{ color: '#0f172a' }}>{r.product_name}</strong><div style={{ fontSize: '0.72rem', color: '#64748b' }}>Code: {r.product_code}</div></div> },
+          { header: 'Category', accessor: 'category' },
+          { header: 'Required Qty', accessor: 'total_required_qty', align: 'center', render: r => <strong style={{ color: '#2563eb' }}>{r.total_required_qty} {r.unit}</strong> },
+          { header: 'Est. Unit Price', accessor: 'est_unit_price', align: 'right', render: r => `₹${Number(r.est_unit_price || 0).toLocaleString('en-IN')}` },
+          { header: 'Total Budget', align: 'right', render: r => <strong>₹{(r.total_required_qty * r.est_unit_price).toLocaleString('en-IN')}</strong> }
+        ]}
+        tableData={consolidatedDemands}
+        showSignatures={true}
+      />
     </div>
   );
 };
