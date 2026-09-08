@@ -16,15 +16,19 @@ export const AdminDashboard = ({ setCurrentTab }) => {
     return status === 'pending' || status === 'pending approval';
   });
 
-  // Clear quotes that have already been processed into Purchase Orders from Open Price Quotes
+  // Quotes Ready to Compare: Requests that are Admin-Approved, not yet awarded into PO, AND have received supplier quotations
   const openQuotations = requests.filter(r => {
     const status = (r.txt_Status || '').toLowerCase();
-    const isProcessed = ['approved', 'po issued', 'delivered', 'completed', 'rejected'].includes(status);
+    const isApprovedByAdmin = !['pending', 'pending approval'].includes(status);
+    const isProcessed = ['po issued', 'delivered', 'completed', 'rejected'].includes(status);
     const hasPO = (purchases || []).some(p => 
       Number(p.int_Request_Id) === Number(r.int_Request_Id) ||
       String(p.request_no) === String(r.txt_Request_No || r.txt_Request_Code)
     );
-    return !isProcessed && !hasPO;
+    const hasSupplierQuotes = (quotations || []).some(q => 
+      Number(q.int_Request_Id) === Number(r.int_Request_Id)
+    );
+    return isApprovedByAdmin && !isProcessed && !hasPO && hasSupplierQuotes;
   });
 
   const activePOs = purchases.filter(p => {

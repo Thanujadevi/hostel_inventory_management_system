@@ -26,19 +26,44 @@ const initialSeedData = {
     }
   ],
   tbl_Store: [
-    { int_Store_Id: 1, txt_Store_Code: 'STO001', txt_Store_Name: 'Boys Hostel Store 1', txt_Location: 'Block A Ground Floor', txt_Incharge_Name: 'Ramesh Kumar', txt_Phone: '9876543210', txt_Email: 'store1@hostel.edu' }
+    { int_Store_Id: 1, txt_Store_Code: 'STR-2026-001', txt_Store_Name: 'Boys Hostel Store', txt_Location: 'Boys Hostel', txt_Campus: 'Boys Hostel', txt_Incharge_Name: 'John', txt_Incharge: 'John', txt_Phone: '9876543210', txt_Email: 'store001@hostel.edu', txt_Username: 'str-2026-001', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 2, txt_Store_Code: 'STR-2026-002', txt_Store_Name: 'Girls Hostel Store', txt_Location: 'Girls Hostel', txt_Campus: 'Girls Hostel', txt_Incharge_Name: 'Alice', txt_Incharge: 'Alice', txt_Phone: '9876543211', txt_Email: 'store002@hostel.edu', txt_Username: 'str-2026-002', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 3, txt_Store_Code: 'STR-2026-003', txt_Store_Name: 'Subash Hostel Store', txt_Location: 'West Campus - Block A', txt_Campus: 'West Campus - Block A', txt_Incharge_Name: 'David Raj', txt_Incharge: 'David Raj', txt_Phone: '9876543212', txt_Email: 'store003@hostel.edu', txt_Username: 'str-2026-003', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 4, txt_Store_Code: 'STR-2026-004', txt_Store_Name: 'Bharathi Hostel Store', txt_Location: 'East Campus - Block B', txt_Campus: 'East Campus - Block B', txt_Incharge_Name: 'Saravanan M', txt_Incharge: 'Saravanan M', txt_Phone: '9876543213', txt_Email: 'store004@hostel.edu', txt_Username: 'str-2026-004', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 5, txt_Store_Code: 'STR-2026-005', txt_Store_Name: 'Vivekanandar Hostel Store', txt_Location: 'Main Campus - Block C', txt_Campus: 'Main Campus - Block C', txt_Incharge_Name: 'Anitha K', txt_Incharge: 'Anitha K', txt_Phone: '9876543214', txt_Email: 'store005@hostel.edu', txt_Username: 'str-2026-005', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 6, txt_Store_Code: 'STR-2026-006', txt_Store_Name: 'Kalam Hostel Store', txt_Location: 'Science Block Campus', txt_Campus: 'Science Block Campus', txt_Incharge_Name: 'Vigneshwaran R', txt_Incharge: 'Vigneshwaran R', txt_Phone: '9876543215', txt_Email: 'store006@hostel.edu', txt_Username: 'str-2026-006', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 7, txt_Store_Code: 'STR-2026-007', txt_Store_Name: 'Ramanujan Hostel Store', txt_Location: 'Engineering Wing Campus', txt_Campus: 'Engineering Wing Campus', txt_Incharge_Name: 'Meenakshi S', txt_Incharge: 'Meenakshi S', txt_Phone: '9876543216', txt_Email: 'store007@hostel.edu', txt_Username: 'str-2026-007', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 8, txt_Store_Code: 'STR-2026-008', txt_Store_Name: 'Mother Teresa Hostel Store', txt_Location: 'Ladies Hostel Block 2', txt_Campus: 'Ladies Hostel Block 2', txt_Incharge_Name: 'Soundarya P', txt_Incharge: 'Soundarya P', txt_Phone: '9876543217', txt_Email: 'store008@hostel.edu', txt_Username: 'str-2026-008', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 9, txt_Store_Code: 'STR-2026-009', txt_Store_Name: 'PG & Research Scholars Store', txt_Location: 'PG Block Campus', txt_Campus: 'PG Block Campus', txt_Incharge_Name: 'Murugan T', txt_Incharge: 'Murugan T', txt_Phone: '9876543218', txt_Email: 'store009@hostel.edu', txt_Username: 'str-2026-009', txt_Password: 'storepassword', txt_Active: 'Y' },
+    { int_Store_Id: 10, txt_Store_Code: 'STR-2026-010', txt_Store_Name: 'International Students Store', txt_Location: 'Global Block Campus', txt_Campus: 'Global Block Campus', txt_Incharge_Name: 'Radhika N', txt_Incharge: 'Radhika N', txt_Phone: '9876543219', txt_Email: 'store010@hostel.edu', txt_Username: 'str-2026-010', txt_Password: 'storepassword', txt_Active: 'Y' }
   ],
   tbl_Supplier: [
     { int_Supplier_Id: 1, txt_Supplier_Code: 'SUP001', txt_Supplier_Name: 'Global Supplies', txt_Store_Name: 'Global Supplies', txt_Phone: '9876501234', txt_Email: 'global@supplies.com', txt_City: 'Coimbatore', txt_State: 'Tamil Nadu', txt_GST: '33BBBCA5678B1Z2' },
     { int_Supplier_Id: 2, txt_Supplier_Code: 'SUP002', txt_Supplier_Name: 'Apex Traders', txt_Store_Name: 'Apex Traders', txt_Phone: '9988776655', txt_Email: 'apex@traders.com', txt_City: 'Chennai', txt_State: 'Tamil Nadu', txt_GST: '33AAACA1234A1Z5' }
   ],
   tbl_Category: [
-    { int_Category_Id: 1, txt_Category_Code: 'CAT001', txt_Category_Name: 'Bedding & Furniture' },
-    { int_Category_Id: 2, txt_Category_Code: 'CAT002', txt_Category_Name: 'Electricals & Plumbing' }
+    { int_Category_Id: 1, txt_Category_Code: 'CAT-2026-001', txt_Category_Name: 'Room & Furniture', txt_Description: 'Chairs, tables, mattresses and bedframes' },
+    { int_Category_Id: 2, txt_Category_Code: 'CAT-2026-003', txt_Category_Name: 'Bathroom Supplies', txt_Description: 'Detergents, brooms, disinfectants and cleaning tools' },
+    { int_Category_Id: 3, txt_Category_Code: 'CAT-2026-004', txt_Category_Name: 'Kitchen & Dining', txt_Description: 'Groceries, oils, rice, cooking utensils and dining tools' },
+    { int_Category_Id: 4, txt_Category_Code: 'CAT-2026-005', txt_Category_Name: 'Stationery & Office', txt_Description: 'Registers, pens, papers and office supplies' },
+    { int_Category_Id: 5, txt_Category_Code: 'CAT-2026-006', txt_Category_Name: 'Electricals', txt_Description: 'Bulbs, switches, wires and extension boards' },
+    { int_Category_Id: 6, txt_Category_Code: 'CAT-2026-007', txt_Category_Name: 'Medical & First Aid', txt_Description: 'Emergency medicines, band-aids, antiseptics, and health kits' },
+    { int_Category_Id: 7, txt_Category_Code: 'CAT-2026-008', txt_Category_Name: 'Sports & Recreation', txt_Description: 'Badminton racquets, volleyballs, carrom boards, and sports gear' },
+    { int_Category_Id: 8, txt_Category_Code: 'CAT-2026-009', txt_Category_Name: 'Plumbing & Hardware', txt_Description: 'Water pipes, taps, valves, sealant tapes, and plumbing fittings' },
+    { int_Category_Id: 9, txt_Category_Code: 'CAT-2026-010', txt_Category_Name: 'Laundry & Linen', txt_Description: 'Washing powder, bedsheets, pillow covers, and towels' },
+    { int_Category_Id: 10, txt_Category_Code: 'CAT-2026-011', txt_Category_Name: 'Safety & Security', txt_Description: 'Fire extinguishers, padlocks, CCTV cables, and security gear' }
   ],
   tbl_Item: [
-    { int_Item_Id: 1, txt_Item_Code: 'ITM001', txt_Item_Name: 'Single Cot Mattress 6x3', int_Category_Id: 1, txt_Category_Name: 'Bedding & Furniture', dec_Unit_Price: 2500, txt_Unit: 'Nos', int_quantity_in_hand: 50 },
-    { int_Item_Id: 2, txt_Item_Code: 'ITM002', txt_Item_Name: 'LED Tube Light 20W', int_Category_Id: 2, txt_Category_Name: 'Electricals & Plumbing', dec_Unit_Price: 350, txt_Unit: 'Nos', int_quantity_in_hand: 120 }
+    { int_Item_Id: 1, txt_Item_Code: 'ITM-2026-001', txt_Item_Name: 'Basmati Rice 25kg Bag', int_Category_Id: 3, txt_Category_Name: 'Kitchen & Dining', txt_Category: 'Kitchen & Dining', dec_Unit_Price: 85, dbl_Unit_Price: 85, txt_Unit: 'Kg', int_quantity_in_hand: 250, int_Current_Stock: 250 },
+    { int_Item_Id: 2, txt_Item_Code: 'ITM-2026-002', txt_Item_Name: 'Cooking Oil', int_Category_Id: 3, txt_Category_Name: 'Kitchen & Dining', txt_Category: 'Kitchen & Dining', dec_Unit_Price: 150, dbl_Unit_Price: 150, txt_Unit: 'Litre', int_quantity_in_hand: 100, int_Current_Stock: 100 },
+    { int_Item_Id: 3, txt_Item_Code: 'ITM-2026-003', txt_Item_Name: 'Mattress', int_Category_Id: 1, txt_Category_Name: 'Room & Furniture', txt_Category: 'Room & Furniture', dec_Unit_Price: 3500, dbl_Unit_Price: 3500, txt_Unit: 'Nos', int_quantity_in_hand: 5, int_Current_Stock: 5 },
+    { int_Item_Id: 4, txt_Item_Code: 'ITM-2026-004', txt_Item_Name: 'Floor Cleaner', int_Category_Id: 2, txt_Category_Name: 'Bathroom Supplies', txt_Category: 'Bathroom Supplies', dec_Unit_Price: 180, dbl_Unit_Price: 180, txt_Unit: 'Litre', int_quantity_in_hand: 50, int_Current_Stock: 50 },
+    { int_Item_Id: 5, txt_Item_Code: 'ITM-2026-005', txt_Item_Name: 'Wire', int_Category_Id: 5, txt_Category_Name: 'Electricals', txt_Category: 'Electricals', dec_Unit_Price: 50, dbl_Unit_Price: 50, txt_Unit: 'Rolls', int_quantity_in_hand: 10, int_Current_Stock: 10 },
+    { int_Item_Id: 6, txt_Item_Code: 'ITM-2026-006', txt_Item_Name: 'First Aid Kit Complete', int_Category_Id: 6, txt_Category_Name: 'Medical & First Aid', txt_Category: 'Medical & First Aid', dec_Unit_Price: 650, dbl_Unit_Price: 650, txt_Unit: 'Set', int_quantity_in_hand: 15, int_Current_Stock: 15 },
+    { int_Item_Id: 7, txt_Item_Code: 'ITM-2026-007', txt_Item_Name: 'Volleyball Tournament Leather', int_Category_Id: 7, txt_Category_Name: 'Sports & Recreation', txt_Category: 'Sports & Recreation', dec_Unit_Price: 950, dbl_Unit_Price: 950, txt_Unit: 'Nos', int_quantity_in_hand: 8, int_Current_Stock: 8 },
+    { int_Item_Id: 8, txt_Item_Code: 'ITM-2026-008', txt_Item_Name: 'Brass Tap 1/2 Inch', int_Category_Id: 8, txt_Category_Name: 'Plumbing & Hardware', txt_Category: 'Plumbing & Hardware', dec_Unit_Price: 240, dbl_Unit_Price: 240, txt_Unit: 'Pcs', int_quantity_in_hand: 30, int_Current_Stock: 30 },
+    { int_Item_Id: 9, txt_Item_Code: 'ITM-2026-009', txt_Item_Name: 'Cotton Bedsheet Double', int_Category_Id: 9, txt_Category_Name: 'Laundry & Linen', txt_Category: 'Laundry & Linen', dec_Unit_Price: 480, dbl_Unit_Price: 480, txt_Unit: 'Pcs', int_quantity_in_hand: 45, int_Current_Stock: 45 },
+    { int_Item_Id: 10, txt_Item_Code: 'ITM-2026-010', txt_Item_Name: 'Heavy Duty Brass Padlock 50mm', int_Category_Id: 10, txt_Category_Name: 'Safety & Security', txt_Category: 'Safety & Security', dec_Unit_Price: 320, dbl_Unit_Price: 320, txt_Unit: 'Pcs', int_quantity_in_hand: 25, int_Current_Stock: 25 }
   ],
   tbl_Inventory_Request: [
     { int_Request_Id: 1, txt_Request_No: 'REQ-0001', int_Store_Id: 1, store_name: 'Boys Hostel Store 1', txt_Status: 'PO Issued', dte_Request_Date: '2026-08-25', txt_Period: 'August 2026', dec_Est_Budget: 25000 },
@@ -154,6 +179,33 @@ const getDB = () => {
     }
     if (!db.tbl_Purchase || !Array.isArray(db.tbl_Purchase) || db.tbl_Purchase.length === 0) {
       db.tbl_Purchase = initialSeedData.tbl_Purchase;
+      saveDB(db);
+    }
+    if (!db.tbl_Store || !Array.isArray(db.tbl_Store) || db.tbl_Store.length < 10) {
+      db.tbl_Store = db.tbl_Store || [];
+      initialSeedData.tbl_Store.forEach(seedStore => {
+        if (!db.tbl_Store.some(s => s.txt_Store_Code === seedStore.txt_Store_Code || s.int_Store_Id === seedStore.int_Store_Id)) {
+          db.tbl_Store.push(seedStore);
+        }
+      });
+      saveDB(db);
+    }
+    if (!db.tbl_Category || !Array.isArray(db.tbl_Category) || db.tbl_Category.length < 10) {
+      db.tbl_Category = db.tbl_Category || [];
+      initialSeedData.tbl_Category.forEach(seedCat => {
+        if (!db.tbl_Category.some(c => c.txt_Category_Code === seedCat.txt_Category_Code || c.txt_Category_Name === seedCat.txt_Category_Name)) {
+          db.tbl_Category.push(seedCat);
+        }
+      });
+      saveDB(db);
+    }
+    if (!db.tbl_Item || !Array.isArray(db.tbl_Item) || db.tbl_Item.length < 10) {
+      db.tbl_Item = db.tbl_Item || [];
+      initialSeedData.tbl_Item.forEach(seedItem => {
+        if (!db.tbl_Item.some(i => i.txt_Item_Code === seedItem.txt_Item_Code || i.txt_Item_Name === seedItem.txt_Item_Name)) {
+          db.tbl_Item.push(seedItem);
+        }
+      });
       saveDB(db);
     }
     return db;
@@ -743,6 +795,10 @@ export const mockApi = {
 
     saveDB(db);
     return newQuotation;
+  },
+
+  saveQuotation: async (qData) => {
+    return await mockApi.submitQuotation(qData, qData.items || []);
   },
 
   // APPROVE QUOTATION & GENERATE PURCHASE ORDER (tbl_Purchase)

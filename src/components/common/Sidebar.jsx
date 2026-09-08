@@ -285,7 +285,10 @@ export const Sidebar = ({ currentTab, setCurrentTab }) => {
               {(user.name || 'U').charAt(0).toUpperCase()}
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--sidebar-text-hover)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div 
+                title={user.name || 'Active User'}
+                style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--sidebar-text-hover)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
                 {user.name || 'Active User'}
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--sidebar-text)', textTransform: 'capitalize' }}>

@@ -29,7 +29,13 @@ export const QuotationModel = {
         LEFT JOIN tbl_Item i ON qi.int_Item_Id = i.int_Item_Id
         WHERE qi.int_Quotation_Id = ?
       `, [q.int_Quotation_Id]);
-      q.items = items;
+      
+      q.items = items.map(item => ({
+        ...item,
+        int_Product_Id: item.int_Item_Id,
+        dec_Unit_Price: Number(item.dbl_Unit_Price || 0),
+        is_available: Number(item.dbl_Unit_Price || 0) > 0
+      }));
     }
     return quotations;
   },

@@ -58,7 +58,7 @@ async function getTransporter() {
 /**
  * Send deadline reminder emails to all active store in-charges
  */
-export async function sendDeadlineReminders({ forceManual = false, triggerType = 'MANUAL_DASHBOARD' } = {}) {
+export async function sendDeadlineReminders({ forceManual = false, triggerType = 'MANUAL_DASHBOARD', testStage = null, remainingMins = null } = {}) {
   await initEmailLogTable();
 
   // 1. Get current requirement period and deadline
@@ -85,13 +85,11 @@ export async function sendDeadlineReminders({ forceManual = false, triggerType =
   }
 
   // Determine if reminder should be sent
-  // AUTOMATIC mode: triggers when daysRemaining <= 2 OR when deadline is overdue (daysRemaining < 0)
-  // MANUAL mode: triggers anytime on demand
   const isOverdue = daysRemaining !== null && daysRemaining < 0;
   const isDeadlineToday = daysRemaining === 0;
   const isUpcoming = daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 2;
 
-  const shouldSend = forceManual || isUpcoming || isDeadlineToday || isOverdue;
+  const shouldSend = forceManual || testStage || isUpcoming || isDeadlineToday || isOverdue;
 
   if (!shouldSend && !forceManual) {
     return {
@@ -123,13 +121,23 @@ export async function sendDeadlineReminders({ forceManual = false, triggerType =
     const recipientName = store.txt_Incharge || 'Store In-Charge';
     const storeName = store.txt_Store_Name || 'Hostel Store';
 
-    // Dynamic subject line based on status
+    // Dynamic subject line based on testStage or standard status
     let subject = `⏰ [Action Required] Hostel Inventory Requirement Submission Reminder (${storeName})`;
     let statusBannerTitle = '⚠️ Deadline Notice';
     let statusBannerColor = '#f59e0b'; // warning yellow
     let timeStatusText = '';
 
-    if (isOverdue) {
+    if (testStage === 'REMINDER_3MIN') {
+      subject = `⏰ [Reminder] 2 Minutes Remaining for Hostel Requirement Submission (${storeName})`;
+      statusBannerTitle = '⚠️ Upcoming Requirement Deadline (2 Mins Left)';
+      statusBannerColor = '#f59e0b';
+      timeStatusText = `Time Remaining: <strong style="color:#d97706">2 Minutes Remaining</strong> (5-Minute Test Window)`;
+    } else if (testStage === 'DEADLINE_5MIN') {
+      subject = `🚨 [DEADLINE REACHED] 5-Minute Requirement Submission Window Closed (${storeName})`;
+      statusBannerTitle = '🚨 DEADLINE REACHED (5-Minute Window Closed)';
+      statusBannerColor = '#ef4444';
+      timeStatusText = `Status: <strong style="color:#ef4444">DEADLINE REACHED! 5-Minute Period Expired</strong>`;
+    } else if (isOverdue) {
       subject = `🚨 [OVERDUE NOTICE] Requirement Deadline Passed - ${storeName}`;
       statusBannerTitle = '🚨 OVERDUE SUBMISSION ALERT';
       statusBannerColor = '#ef4444'; // danger red
