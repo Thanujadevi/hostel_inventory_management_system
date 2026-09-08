@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { Card } from '../../components/common/Card';
+import { NumberInput } from '../../components/common/NumberInput';
 import { MapPin, Building, Landmark, Truck, Save, CheckCircle, AlertCircle } from 'lucide-react';
 
 const INDIAN_STATES = [
@@ -601,13 +602,12 @@ export const SupplierProfile = ({ onComplete }) => {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Minimum Order Value (₹) <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-text-secondary)' }}>(Optional)</span></label>
-              <input
-                type="number"
-                name="dec_Min_Order_Value"
-                className="form-control"
+              <NumberInput
+                step={500}
+                min={0}
                 placeholder="e.g. 5000 (Optional)"
                 value={formData.dec_Min_Order_Value}
-                onChange={handleChange}
+                onChange={val => handleChange({ target: { name: 'dec_Min_Order_Value', value: val } })}
               />
             </div>
             <div className="form-group">

@@ -5,6 +5,7 @@ import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { PrintableReport } from '../../components/common/PrintableReport';
+import { NumberInput } from '../../components/common/NumberInput';
 import { matchesWordPrefix } from '../../utils/searchUtils';
 import { 
   FileText, 
@@ -979,12 +980,13 @@ export const AdminRequirements = ({ currentTab }) => {
 
               <div className="form-group">
                 <label className="form-label">Year</label>
-                <input
-                  type="number"
-                  className="form-control"
+                <NumberInput
+                  step={1}
+                  min={2020}
+                  max={2100}
                   required
                   value={periodForm.int_Year}
-                  onChange={e => setPeriodForm({ ...periodForm, int_Year: Number(e.target.value) })}
+                  onChange={val => setPeriodForm({ ...periodForm, int_Year: Number(val) })}
                 />
               </div>
             </div>

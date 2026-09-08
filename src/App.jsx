@@ -85,6 +85,17 @@ const AppContent = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isLoggedIn, logout]);
 
+  // Prevent mouse wheel scrolling from changing number input values globally
+  useEffect(() => {
+    const handleWheelPrevent = () => {
+      if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+      }
+    };
+    window.addEventListener('wheel', handleWheelPrevent, { passive: true });
+    return () => window.removeEventListener('wheel', handleWheelPrevent);
+  }, []);
+
   // Sync history state on Auth state transition (Login / Logout / App Launch)
   useEffect(() => {
     if (!isLoggedIn) {

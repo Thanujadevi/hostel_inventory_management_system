@@ -5,6 +5,7 @@ import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { NumberInput } from '../../components/common/NumberInput';
 import { CreditCard, Plus, CheckCircle, QrCode, ShieldCheck, Loader2 } from 'lucide-react';
 import { generatePaymentCode } from '../../utils/codeGenerator';
 
@@ -335,19 +336,13 @@ export const AdminPayments = () => {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Payment Amount (₹)</label>
-              <input
-                type="number"
-                step="any"
-                min="0"
-                className="form-control"
+              <NumberInput
+                step={100}
+                min={0}
                 required
                 placeholder="0"
                 value={formData.dec_Payment_Amount ?? ''}
-                onFocus={e => e.target.select()}
-                onChange={e => {
-                  const val = e.target.value;
-                  setFormData({ ...formData, dec_Payment_Amount: val === '' ? '' : Number(val) });
-                }}
+                onChange={val => setFormData({ ...formData, dec_Payment_Amount: val })}
               />
             </div>
             <div className="form-group">

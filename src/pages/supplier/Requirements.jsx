@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { apiService } from '../../services/api';
+import { NumberInput } from '../../components/common/NumberInput';
 import { Send, Truck, Package, Layers, CheckCircle } from 'lucide-react';
 import { generateQuotationCode } from '../../utils/codeGenerator';
 
@@ -309,16 +310,14 @@ export const SupplierRequirements = () => {
                           {isAvail ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>₹</span>
-                              <input
-                                type="number"
-                                step="any"
-                                min="0"
-                                className="form-control"
-                                style={{ fontWeight: 700, fontSize: '0.95rem' }}
+                              <NumberInput
+                                step={1}
+                                min={0}
                                 required
-                                onFocus={e => e.target.select()}
+                                style={{ width: '130px' }}
+                                inputStyle={{ fontWeight: 700, fontSize: '0.95rem' }}
                                 value={unitPrices[prod.int_Product_Id] !== undefined ? unitPrices[prod.int_Product_Id] : 120}
-                                onChange={e => handlePriceChange(prod.int_Product_Id, e.target.value)}
+                                onChange={val => handlePriceChange(prod.int_Product_Id, val)}
                               />
                             </div>
                           ) : (
@@ -352,24 +351,23 @@ export const SupplierRequirements = () => {
 
               <div className="form-group">
                 <label className="form-label">Freight & Transport Charge (₹)</label>
-                <input
-                  type="number"
-                  className="form-control"
+                <NumberInput
+                  step={50}
+                  min={0}
                   required
                   value={transportCost}
-                  onChange={e => setTransportCost(Number(e.target.value))}
+                  onChange={val => setTransportCost(Number(val))}
                 />
               </div>
 
               <div className="form-group">
                 <label className="form-label">Delivery Turnaround (Days)</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="form-control"
+                <NumberInput
+                  step={1}
+                  min={1}
                   required
                   value={deliveryDays}
-                  onChange={e => setDeliveryDays(Number(e.target.value))}
+                  onChange={val => setDeliveryDays(Number(val))}
                 />
               </div>
             </div>

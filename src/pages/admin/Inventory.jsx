@@ -6,6 +6,7 @@ import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { HighlightText } from '../../components/common/HighlightText';
+import { NumberInput } from '../../components/common/NumberInput';
 import { Package, FolderPlus, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { generateItemCode, generateCategoryCode } from '../../utils/codeGenerator';
 
@@ -313,19 +314,13 @@ export const AdminInventory = () => {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Est. Unit Price (₹)</label>
-              <input
-                type="number"
-                step="any"
-                min="0"
-                className="form-control"
+              <NumberInput
+                step={1}
+                min={0}
                 required
                 placeholder="0"
                 value={itemFormData.dec_Last_Purchase_Price ?? ''}
-                onFocus={e => e.target.select()}
-                onChange={e => {
-                  const val = e.target.value;
-                  setItemFormData({ ...itemFormData, dec_Last_Purchase_Price: val === '' ? '' : Number(val) });
-                }}
+                onChange={val => setItemFormData({ ...itemFormData, dec_Last_Purchase_Price: val })}
               />
               <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
                 Estimated price per unit used for budget & purchase orders
@@ -333,19 +328,13 @@ export const AdminInventory = () => {
             </div>
             <div className="form-group">
               <label className="form-label">Quantity in Hand</label>
-              <input
-                type="number"
-                step="1"
-                min="0"
-                className="form-control"
+              <NumberInput
+                step={1}
+                min={0}
                 required
                 placeholder="0"
                 value={itemFormData.int_quantity_in_hand ?? ''}
-                onFocus={e => e.target.select()}
-                onChange={e => {
-                  const val = e.target.value;
-                  setItemFormData({ ...itemFormData, int_quantity_in_hand: val === '' ? '' : Number(val) });
-                }}
+                onChange={val => setItemFormData({ ...itemFormData, int_quantity_in_hand: val })}
               />
               <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
                 Current stock available in storage when registering item

@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { apiService } from '../../services/api';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { NumberInput } from '../../components/common/NumberInput';
 import { CheckSquare, PackageCheck, AlertCircle, ArrowRight, Star } from 'lucide-react';
 
 export const StoreStockUpdate = ({ setCurrentTab }) => {
@@ -183,14 +184,14 @@ export const StoreStockUpdate = ({ setCurrentTab }) => {
                           {defaultQty} {unitName}
                         </td>
                         <td>
-                          <input
-                            type="number"
-                            min="0"
-                            className="form-control"
-                            style={{ width: '120px', fontWeight: 700, color: 'var(--color-primary)' }}
+                          <NumberInput
+                            min={0}
+                            step={1}
+                            style={{ width: '130px' }}
+                            inputStyle={{ fontWeight: 700, color: 'var(--color-primary)' }}
                             disabled={currentPO.txt_Status === 'Delivered'}
                             value={recQty}
-                            onChange={e => handleQtyChange(item.int_Product_Id, e.target.value)}
+                            onChange={val => handleQtyChange(item.int_Product_Id, val)}
                           />
                         </td>
                         <td>
