@@ -39,22 +39,26 @@ export const AdminQuotationCompare = () => {
   // View mode switcher: 'cards' (Supplier Bid Cards), 'matrix' (Item-wise Comparison), 'inspector' (Detailed Inspector)
   const [viewMode, setViewMode] = useState('cards');
 
-  // Filter requests based on selected filterTab
+  // Filter requests based on selected filterTab (Only Admin-Approved & Supplier-Quoted requests appear)
   const filteredRequests = useMemo(() => {
     return requests.filter(r => {
       const status = (r.txt_Status || '').toLowerCase();
-      const isProcessed = ['approved', 'po issued', 'delivered', 'completed', 'rejected'].includes(status);
+      const isApprovedByAdmin = !['pending', 'pending approval'].includes(status);
+      const isProcessed = ['po issued', 'delivered', 'completed', 'rejected'].includes(status);
       const hasPO = (purchases || []).some(p => 
         Number(p.int_Request_Id) === Number(r.int_Request_Id) ||
         String(p.request_no) === String(r.txt_Request_No || r.txt_Request_Code)
       );
       const isAwarded = isProcessed || hasPO;
+      const hasSupplierQuotes = (quotations || []).some(q => 
+        Number(q.int_Request_Id) === Number(r.int_Request_Id)
+      );
 
-      if (filterTab === 'OPEN') return !isAwarded;
+      if (filterTab === 'OPEN') return isApprovedByAdmin && !isAwarded && hasSupplierQuotes;
       if (filterTab === 'AWARDED') return isAwarded;
-      return true; // 'ALL'
+      return isApprovedByAdmin && hasSupplierQuotes; // 'ALL' supplier-quoted requests
     });
-  }, [requests, purchases, filterTab]);
+  }, [requests, purchases, quotations, filterTab]);
 
   // Selected request state
   const [selectedReqId, setSelectedReqId] = useState('');
@@ -518,27 +522,28 @@ export const AdminQuotationCompare = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Overall Lowest Price (L1) Recommendation Card */}
           {optimumQuotation && (
-            <div style={{
-              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
-              border: '2px solid #34d399',
-              borderRadius: '14px',
+            <div className="card" style={{
+              backgroundColor: 'var(--color-surface, #ffffff)',
+              border: '1px solid var(--color-border)',
+              borderLeft: '5px solid #059669',
+              borderRadius: '12px',
               padding: '20px 24px',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.15)'
+              boxShadow: 'var(--shadow-sm)'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
                   <div style={{
-                    backgroundColor: '#059669',
-                    color: '#ffffff',
-                    padding: '14px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 8px rgba(5, 150, 105, 0.3)',
+                    backgroundColor: '#ecfdf5',
+                    color: '#059669',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid #a7f3d0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0
                   }}>
-                    <Trophy size={32} />
+                    <Trophy size={26} />
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -546,29 +551,30 @@ export const AdminQuotationCompare = () => {
                         fontSize: '0.72rem',
                         fontWeight: 800,
                         textTransform: 'uppercase',
-                        color: '#ffffff',
-                        backgroundColor: '#059669',
+                        color: '#047857',
+                        backgroundColor: '#e6f4ea',
+                        border: '1px solid #a7f3d0',
                         padding: '3px 10px',
                         borderRadius: '12px',
                         letterSpacing: '0.5px'
                       }}>
-                        🏆 System Recommended Lowest Price (L1)
+                        Lowest Bidder (L1)
                       </span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#047857', backgroundColor: '#a7f3d0', padding: '2px 8px', borderRadius: '10px' }}>
-                        Item Coverage: {optimumQuotation.availableItemsCount}/{optimumQuotation.totalReqItems} ({optimumQuotation.coveragePercent}%)
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-bg-secondary, #f1f5f9)', padding: '2px 8px', borderRadius: '10px' }}>
+                        Coverage: {optimumQuotation.availableItemsCount}/{optimumQuotation.totalReqItems} ({optimumQuotation.coveragePercent}%)
                       </span>
                     </div>
 
-                    <h3 style={{ margin: '6px 0 3px 0', fontSize: '1.25rem', fontWeight: 800, color: '#064e3b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h3 style={{ margin: '6px 0 3px 0', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       {optimumQuotation.supplierName}
                       {optimumQuotation.ownerName && (
-                        <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#047857' }}>
-                          (Proprietor: {optimumQuotation.ownerName})
+                        <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+                          ({optimumQuotation.ownerName})
                         </span>
                       )}
                     </h3>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.8125rem', color: '#047857', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
                       {optimumQuotation.phone && (
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                           <Phone size={14} /> {optimumQuotation.phone}
@@ -591,14 +597,14 @@ export const AdminQuotationCompare = () => {
                       )}
                     </div>
 
-                    <div style={{ margin: '8px 0 0 0', fontSize: '0.9rem', color: '#047857' }}>
-                      Total Bid Price: <strong style={{ color: '#064e3b', fontSize: '1.1rem' }}>₹{optimumQuotation.grandTotal.toLocaleString('en-IN')}</strong>
-                      <span style={{ opacity: 0.9, marginLeft: '8px', fontSize: '0.825rem' }}>
+                    <div style={{ margin: '8px 0 0 0', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+                      Total Bid Price: <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.15rem' }}>₹{optimumQuotation.grandTotal.toLocaleString('en-IN')}</strong>
+                      <span style={{ opacity: 0.85, marginLeft: '8px', fontSize: '0.8rem' }}>
                         (Products: ₹{optimumQuotation.itemsSubtotal.toLocaleString('en-IN')} + Freight: ₹{optimumQuotation.transport.toLocaleString('en-IN')} | Turnaround: {optimumQuotation.deliveryDays})
                       </span>
                       {costSavings > 0 && (
-                        <span style={{ fontWeight: 800, color: '#047857', backgroundColor: '#6ee7b7', padding: '2px 8px', borderRadius: '6px', marginLeft: '10px', fontSize: '0.8rem' }}>
-                          Save ₹{costSavings.toLocaleString('en-IN')}!
+                        <span style={{ fontWeight: 700, color: '#047857', backgroundColor: '#e6f4ea', padding: '2px 8px', borderRadius: '6px', marginLeft: '10px', fontSize: '0.78rem' }}>
+                          Save ₹{costSavings.toLocaleString('en-IN')}
                         </span>
                       )}
                     </div>
@@ -607,26 +613,26 @@ export const AdminQuotationCompare = () => {
 
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                   {isOrderPlaced || optimumQuotation.txt_Status === 'Approved' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#047857', fontWeight: 800, fontSize: '1rem', backgroundColor: '#a7f3d0', padding: '8px 16px', borderRadius: '8px' }}>
-                      <CheckCircle2 size={22} /> Order Awarded & PO Issued
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#047857', fontWeight: 800, fontSize: '0.95rem', backgroundColor: '#e6f4ea', padding: '8px 16px', borderRadius: '8px' }}>
+                      <CheckCircle2 size={20} /> Order Awarded & PO Issued
                     </div>
                   ) : (
                     <>
                       <button
-                        className="btn btn-success"
+                        className="btn btn-primary"
                         onClick={() => handleAwardPO(optimumQuotation.int_Quotation_Id, optimumQuotation.supplierName)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 20px', fontWeight: 800, fontSize: '0.9rem', borderRadius: '8px', boxShadow: '0 4px 10px rgba(5, 150, 105, 0.3)' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontWeight: 700, fontSize: '0.875rem', borderRadius: '8px' }}
                       >
-                        <ShoppingCart size={18} /> Accept Recommended Quote (L1)
+                        <ShoppingCart size={17} /> Accept Recommended Quote (L1)
                       </button>
                       {sortedQuotations.length > 1 && (
                         <button
-                          className="btn btn-primary"
+                          className="btn btn-secondary"
                           onClick={handleAwardSplitPO}
-                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 20px', fontWeight: 800, fontSize: '0.9rem', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontWeight: 700, fontSize: '0.875rem', borderRadius: '8px' }}
                           title="Split order across multiple suppliers based on item-wise lowest price (Item L1)"
                         >
-                          <Award size={18} /> Split Order (Item L1)
+                          <Award size={17} /> Split Order (Item L1)
                         </button>
                       )}
                     </>
@@ -666,125 +672,86 @@ export const AdminQuotationCompare = () => {
             </div>
           </div>
 
-          {/* MODE 1: SUPPLIER BID CARDS GRID */}
+          {/* MODE 1: SUPPLIER BIDS SUMMARY TABLE */}
           {viewMode === 'cards' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
-              {sortedQuotations.map((q, rankIdx) => {
-                const isL1 = rankIdx === 0;
-                return (
-                  <div
-                    key={q.int_Quotation_Id}
-                    className="card"
-                    style={{
-                      padding: 0,
-                      overflow: 'hidden',
-                      border: isL1 ? '2px solid #059669' : '1px solid var(--color-border)',
-                      boxShadow: isL1 ? '0 4px 12px rgba(5, 150, 105, 0.15)' : 'var(--shadow-sm)'
-                    }}
-                  >
-                    {/* Supplier Header */}
-                    <div style={{
-                      padding: '14px 18px',
-                      backgroundColor: isL1 ? '#ecfdf5' : 'var(--color-bg-secondary, #f8fafc)',
-                      borderBottom: '1px solid var(--color-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{
-                            fontSize: '0.68rem',
-                            fontWeight: 800,
-                            textTransform: 'uppercase',
-                            color: '#ffffff',
-                            backgroundColor: isL1 ? '#059669' : '#64748b',
-                            padding: '2px 8px',
-                            borderRadius: '10px'
-                          }}>
-                            {isL1 ? 'L1 Lowest Bid' : `Rank #${rankIdx + 1}`}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-purple-text)' }}>
-                            {q.txt_Quotation_No || `QTN-${q.int_Quotation_Id}`}
-                          </span>
-                        </div>
-                        <h4 style={{ margin: '4px 0 0 0', fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>
-                          {q.supplierName}
-                        </h4>
-                      </div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 20px', backgroundColor: 'var(--color-bg-secondary, #f8fafc)', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>Supplier Bids Overview</h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                  {sortedQuotations.length} Bidding Supplier(s) Evaluated
+                </span>
+              </div>
 
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.15rem', fontWeight: 900, color: isL1 ? '#047857' : 'var(--color-text-primary)' }}>
-                          ₹{q.grandTotal.toLocaleString('en-IN')}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>
-                          Inc. ₹{q.transport} freight
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Contact Info */}
-                    <div style={{ padding: '12px 18px', fontSize: '0.8rem', borderBottom: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '4px', backgroundColor: 'var(--color-surface)' }}>
-                      {q.ownerName && <div><strong>Proprietor:</strong> {q.ownerName}</div>}
-                      {q.phone && <div><strong>Phone:</strong> {q.phone}</div>}
-                      {q.gst && <div><strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{q.gst}</span></div>}
-                      <div><strong>Turnaround:</strong> {q.deliveryDays}</div>
-                    </div>
-
-                    {/* Items Breakdown List */}
-                    <div style={{ padding: '12px 18px', backgroundColor: 'var(--color-surface)' }}>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
-                        Quoted Products ({q.availableItemsCount}/{q.totalReqItems})
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
-                        {(currentReq?.items || []).map((reqItem, idx) => {
-                          const reqPId = Number(reqItem.int_Product_Id || reqItem.int_Item_Id);
-                          const qItem = q.items?.find(i => Number(i.int_Product_Id || i.int_Item_Id) === reqPId);
-                          const price = Number(qItem?.dec_Unit_Price ?? qItem?.dbl_Unit_Price ?? qItem?.unit_price ?? 0);
-                          const isAvail = qItem && qItem.is_available !== false && qItem.txt_Status !== 'Not Available' && price > 0;
-                          const reqQty = Number(reqItem.dec_Required_Qty || reqItem.int_Requested_Quantity || reqItem.int_Quantity || reqItem.quantity || 1);
-
-                          return (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '4px 6px', backgroundColor: 'var(--color-bg-secondary, #f8fafc)', borderRadius: '6px' }}>
-                              <div>
-                                <span style={{ fontWeight: 600 }}>{reqItem.product_name || reqItem.txt_Item_Name}</span>
-                                <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', marginLeft: '6px' }}>
-                                  ({reqQty} {reqItem.unit || 'Pcs'})
-                                </span>
-                              </div>
-                              <div>
-                                {isAvail ? (
-                                  <strong style={{ color: 'var(--color-text-primary)' }}>₹{price.toFixed(2)}/unit</strong>
-                                ) : (
-                                  <span style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 700 }}>Out of Stock</span>
-                                )}
-                              </div>
+              <div className="table-container" style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ fontSize: '0.875rem', marginBottom: 0 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ backgroundColor: '#f8fafc', padding: '12px 16px' }}>Rank & Supplier Name</th>
+                      <th style={{ backgroundColor: '#f8fafc', padding: '12px 16px' }}>Contact & GSTIN</th>
+                      <th style={{ backgroundColor: '#f8fafc', padding: '12px 16px' }}>Products Quoted</th>
+                      <th style={{ backgroundColor: '#f8fafc', padding: '12px 16px' }}>Turnaround</th>
+                      <th style={{ backgroundColor: '#f8fafc', padding: '12px 16px' }}>Freight (₹)</th>
+                      <th style={{ backgroundColor: '#f8fafc', padding: '12px 16px' }}>Total Bid Amount</th>
+                      <th style={{ backgroundColor: '#f8fafc', padding: '12px 16px', textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedQuotations.map((q, rankIdx) => {
+                      const isL1 = rankIdx === 0;
+                      return (
+                        <tr key={q.int_Quotation_Id} style={{ backgroundColor: 'transparent' }}>
+                          <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{
+                                fontSize: '0.65rem',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                color: '#ffffff',
+                                backgroundColor: isL1 ? '#2563eb' : '#64748b',
+                                padding: '3px 9px',
+                                borderRadius: '10px'
+                              }}>
+                                {isL1 ? 'L1 Lowest Bid' : `Rank #${rankIdx + 1}`}
+                              </span>
+                              <strong style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>{q.supplierName}</strong>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Card Action */}
-                    <div style={{ padding: '12px 18px', backgroundColor: 'var(--color-bg-secondary, #f8fafc)', borderTop: '1px solid var(--color-border)' }}>
-                      {isOrderPlaced || q.txt_Status === 'Approved' ? (
-                        <div style={{ textAlign: 'center', color: '#047857', fontWeight: 700, fontSize: '0.85rem' }}>
-                          ✓ Order Issued to Supplier
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className={isL1 ? "btn btn-success" : "btn btn-secondary"}
-                          onClick={() => handleAwardPO(q.int_Quotation_Id, q.supplierName)}
-                          style={{ width: '100%', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}
-                        >
-                          Accept {q.supplierName}'s Bid
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                          </td>
+                          <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                            <div style={{ fontSize: '0.825rem', fontWeight: 600 }}>{q.ownerName || '—'}</div>
+                            {q.gst && <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--color-text-secondary)' }}>GST: {q.gst}</div>}
+                          </td>
+                          <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                              {q.availableItemsCount}/{q.totalReqItems} Items ({q.coveragePercent}%)
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', verticalAlign: 'middle', fontWeight: 600 }}>{q.deliveryDays}</td>
+                          <td style={{ padding: '12px 16px', verticalAlign: 'middle', fontWeight: 600 }}>₹{q.transport}</td>
+                          <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                            <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--color-text-primary)' }}>
+                              ₹{q.grandTotal.toLocaleString('en-IN')}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                            {isOrderPlaced || q.txt_Status === 'Approved' ? (
+                              <span style={{ color: '#059669', fontWeight: 800, fontSize: '0.85rem' }}>✓ PO Issued</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className={isL1 ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"}
+                                onClick={() => handleAwardPO(q.int_Quotation_Id, q.supplierName)}
+                                style={{ fontWeight: 700, padding: '7px 16px', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                              >
+                                Accept {q.supplierName}'s Bid
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -799,10 +766,10 @@ export const AdminQuotationCompare = () => {
               </div>
 
               <div className="table-container" style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ fontSize: '0.875rem', marginBottom: 0 }}>
+                <table className="table" style={{ fontSize: '0.875rem', marginBottom: 0, width: '100%', tableLayout: 'fixed' }}>
                   <thead>
                     <tr>
-                      <th style={{ width: '220px', backgroundColor: '#f8fafc', padding: '14px 16px', verticalAlign: 'top' }}>Requested Product</th>
+                      <th style={{ width: '25%', backgroundColor: '#f8fafc', padding: '14px 16px', verticalAlign: 'middle' }}>Requested Product</th>
                       {sortedQuotations.map((q, idx) => {
                         const isL1 = idx === 0;
                         return (
@@ -810,20 +777,24 @@ export const AdminQuotationCompare = () => {
                             key={q.int_Quotation_Id} 
                             style={{ 
                               textAlign: 'center', 
-                              minWidth: '200px',
-                              backgroundColor: isL1 ? '#ecfdf5' : '#ffffff',
+                              width: `${75 / Math.max(sortedQuotations.length, 1)}%`,
+                              backgroundColor: '#f8fafc',
                               padding: '14px 16px',
                               borderLeft: '1px solid var(--color-border)',
-                              verticalAlign: 'top'
+                              verticalAlign: 'middle'
                             }}
                           >
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                              {isL1 && (
-                                <span style={{ backgroundColor: '#059669', color: '#fff', fontSize: '0.65rem', fontWeight: 800, padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase' }}>
-                                  L1 Recommended
-                                </span>
-                              )}
-                              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', minHeight: '62px', justifyContent: 'flex-end' }}>
+                              <div style={{ height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {isL1 ? (
+                                  <span style={{ backgroundColor: '#2563eb', color: '#fff', fontSize: '0.65rem', fontWeight: 800, padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    L1 Recommended
+                                  </span>
+                                ) : (
+                                  <div style={{ height: '22px' }}></div>
+                                )}
+                              </div>
+                              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text-primary)', textAlign: 'center' }}>
                                 {q.supplierName}
                               </div>
                               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-purple-text)', backgroundColor: '#f3e8ff', padding: '1px 8px', borderRadius: '4px' }}>
@@ -852,9 +823,9 @@ export const AdminQuotationCompare = () => {
 
                       return (
                         <tr key={idx}>
-                          <td style={{ padding: '12px 16px', fontWeight: 600 }}>
-                            <div>{reqItem.product_name || reqItem.txt_Item_Name}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 400, marginTop: '2px' }}>
+                          <td style={{ padding: '12px 16px', fontWeight: 600, verticalAlign: 'middle' }}>
+                            <div style={{ color: 'var(--color-text-primary)' }}>{reqItem.product_name || reqItem.txt_Item_Name}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 500, marginTop: '2px' }}>
                               Req Qty: {reqItem.dec_Required_Qty || reqItem.int_Requested_Quantity || reqItem.int_Quantity || reqItem.quantity || 0} {reqItem.unit || reqItem.txt_Unit || 'Pcs'}
                             </div>
                           </td>
@@ -870,27 +841,36 @@ export const AdminQuotationCompare = () => {
                                 key={q.int_Quotation_Id} 
                                 style={{ 
                                   textAlign: 'center',
-                                  padding: '12px 16px',
+                                  padding: '10px 16px',
+                                  verticalAlign: 'middle',
                                   borderLeft: '1px solid var(--color-border)',
-                                  backgroundColor: isAvail ? (isLowestPrice ? '#f0fdf4' : 'transparent') : '#fef2f2'
+                                  backgroundColor: 'transparent'
                                 }}
                               >
-                                {isAvail ? (
-                                  <div>
-                                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: isLowestPrice ? '#047857' : 'var(--color-text-primary)' }}>
-                                      ₹{unitPrice.toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-text-secondary)' }}>/ {reqItem.unit || 'Pcs'}</span>
-                                    </div>
-                                    {isLowestPrice && (
-                                      <span style={{ fontSize: '0.65rem', backgroundColor: '#6ee7b7', color: '#064e3b', fontWeight: 800, padding: '1px 6px', borderRadius: '4px', marginTop: '2px', display: 'inline-block' }}>
-                                        Lowest Item L1
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '46px' }}>
+                                  {isAvail ? (
+                                    <>
+                                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-text-primary)', lineHeight: 1.2 }}>
+                                        ₹{unitPrice.toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>/ {reqItem.unit || 'Pcs'}</span>
+                                      </div>
+                                      <div style={{ height: '18px', marginTop: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        {isLowestPrice ? (
+                                          <span style={{ fontSize: '0.65rem', backgroundColor: '#f1f5f9', color: '#0284c7', border: '1px solid #bae6fd', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>
+                                            Lowest Item L1
+                                          </span>
+                                        ) : (
+                                          <div style={{ height: '18px' }}></div>
+                                        )}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '42px' }}>
+                                      <span style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 700, backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '3px 8px', borderRadius: '4px' }}>
+                                        Out of Stock
                                       </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600 }}>
-                                    Out of Stock
-                                  </span>
-                                )}
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                             );
                           })}
@@ -900,9 +880,9 @@ export const AdminQuotationCompare = () => {
 
                     {/* Subtotal */}
                     <tr style={{ backgroundColor: '#f8fafc', fontWeight: 600 }}>
-                      <td style={{ padding: '10px 16px' }}>Products Subtotal</td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>Products Subtotal</td>
                       {sortedQuotations.map(q => (
-                        <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '10px 16px', borderLeft: '1px solid var(--color-border)' }}>
+                        <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '12px 16px', borderLeft: '1px solid var(--color-border)', verticalAlign: 'middle', fontWeight: 700 }}>
                           ₹{Number(q.itemsSubtotal || 0).toLocaleString('en-IN')}
                         </td>
                       ))}
@@ -910,9 +890,9 @@ export const AdminQuotationCompare = () => {
 
                     {/* Freight */}
                     <tr>
-                      <td style={{ padding: '10px 16px' }}>Freight / Transport</td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>Freight / Transport</td>
                       {sortedQuotations.map(q => (
-                        <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '10px 16px', borderLeft: '1px solid var(--color-border)' }}>
+                        <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '12px 16px', borderLeft: '1px solid var(--color-border)', verticalAlign: 'middle', fontWeight: 600 }}>
                           ₹{Number(q.transport || 0).toLocaleString('en-IN')}
                         </td>
                       ))}
@@ -920,9 +900,9 @@ export const AdminQuotationCompare = () => {
 
                     {/* Delivery Time */}
                     <tr>
-                      <td style={{ padding: '10px 16px' }}>Delivery Turnaround</td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>Delivery Turnaround</td>
                       {sortedQuotations.map(q => (
-                        <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '10px 16px', borderLeft: '1px solid var(--color-border)', fontWeight: 600 }}>
+                        <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '12px 16px', borderLeft: '1px solid var(--color-border)', verticalAlign: 'middle', fontWeight: 600 }}>
                           {q.deliveryDays}
                         </td>
                       ))}
@@ -930,16 +910,17 @@ export const AdminQuotationCompare = () => {
 
                     {/* Grand Total */}
                     <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 800, fontSize: '0.95rem' }}>
-                      <td style={{ padding: '12px 16px' }}>Grand Total</td>
+                      <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>Grand Total</td>
                       {sortedQuotations.map((q, idx) => (
                         <td 
                           key={q.int_Quotation_Id} 
                           style={{ 
                             textAlign: 'center', 
-                            padding: '12px 16px',
+                            padding: '14px 16px',
                             borderLeft: '1px solid var(--color-border)',
-                            color: idx === 0 ? '#047857' : 'var(--color-text-primary)',
-                            fontSize: '1.05rem'
+                            color: 'var(--color-text-primary)',
+                            fontSize: '1.05rem',
+                            verticalAlign: 'middle'
                           }}
                         >
                           ₹{Number(q.grandTotal || 0).toLocaleString('en-IN')}
@@ -949,18 +930,29 @@ export const AdminQuotationCompare = () => {
 
                     {/* Action */}
                     <tr>
-                      <td style={{ padding: '14px 16px', fontWeight: 700 }}>Action</td>
+                      <td style={{ padding: '14px 16px', fontWeight: 800, verticalAlign: 'middle' }}>Action</td>
                       {sortedQuotations.map((q, idx) => (
-                        <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '14px 16px', borderLeft: '1px solid var(--color-border)' }}>
+                        <td key={q.int_Quotation_Id} style={{ textAlign: 'center', padding: '12px 16px', borderLeft: '1px solid var(--color-border)', verticalAlign: 'middle' }}>
                           {isOrderPlaced || q.txt_Status === 'Approved' ? (
-                            <span style={{ color: '#047857', fontWeight: 700, fontSize: '0.85rem' }}>
-                              PO Issued
+                            <span style={{ color: '#059669', fontWeight: 800, fontSize: '0.85rem' }}>
+                              ✓ PO Issued
                             </span>
                           ) : (
                             <button
-                              className={idx === 0 ? "btn btn-success btn-sm" : "btn btn-secondary btn-sm"}
+                              className={idx === 0 ? "btn btn-primary" : "btn btn-secondary"}
                               onClick={() => handleAwardPO(q.int_Quotation_Id, q.supplierName)}
-                              style={{ width: '100%', justifyContent: 'center', fontWeight: 700 }}
+                              style={{ 
+                                width: '100%', 
+                                height: '38px',
+                                justifyContent: 'center', 
+                                fontWeight: 700, 
+                                fontSize: '0.85rem',
+                                padding: '0 12px',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                whiteSpace: 'nowrap'
+                              }}
                             >
                               Accept Quote
                             </button>

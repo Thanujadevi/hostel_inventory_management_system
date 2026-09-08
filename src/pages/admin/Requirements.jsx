@@ -207,8 +207,8 @@ export const AdminRequirements = ({ currentTab }) => {
     }
 
     try {
-      await updateRequestStatus(reqId, 'Approved', adminRemarks || 'Verified & Approved by Admin review');
-      showToast(`Store Requirement #${target?.txt_Request_No || target?.txt_Request_Code || `REQ-${reqId}`} Verified & Approved!`, 'success');
+      await updateRequestStatus(reqId, 'Open for Quotation', adminRemarks || 'Approved by Admin & Sent to Suppliers for Quotations');
+      showToast(`Store Requirement #${target?.txt_Request_No || target?.txt_Request_Code || `REQ-${reqId}`} Approved & Sent to Suppliers for Quotations!`, 'success');
       setSelectedReq(null);
     } catch (err) {
       console.error("Error approving store requirement:", err);

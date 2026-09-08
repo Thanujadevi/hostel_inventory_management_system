@@ -40,8 +40,8 @@ export const SupplierRequirements = () => {
     const map = new Map();
     (requests || []).forEach(r => {
       const status = (r.txt_Status || '').toLowerCase();
-      const isProcessed = ['po issued', 'delivered', 'completed', 'rejected'].includes(status);
-      const isOpen = !isProcessed && (status === 'open for quotation' || status === 'approved' || status === 'pending' || status === 'open');
+      const isPending = status.includes('pending');
+      const isOpen = !isProcessed && !isPending && (status === 'open for quotation' || status === 'approved' || status === 'quotation requested' || status === 'open');
       const codeKey = r.txt_Request_Code || r.txt_Request_No || `REQ-${r.int_Request_Id}`;
       const alreadyBidded = mySubmittedReqIds.has(Number(r.int_Request_Id));
 

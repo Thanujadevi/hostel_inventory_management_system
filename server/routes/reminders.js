@@ -7,7 +7,7 @@ import {
   sendEmailVerificationOTP,
   verifyEmailOTP
 } from '../services/emailService.js';
-import { getSchedulerStatus } from '../services/reminderScheduler.js';
+import { getSchedulerStatus, resetTestScheduler } from '../services/reminderScheduler.js';
 
 const router = express.Router();
 
@@ -89,6 +89,17 @@ router.post('/config', async (req, res) => {
   try {
     const result = await updateGmailEnv(targetEmail);
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/reminders/reset-timer - Reset the 5-minute test timer
+router.post('/reset-timer', async (req, res) => {
+  try {
+    resetTestScheduler();
+    const scheduler = getSchedulerStatus();
+    res.json({ success: true, message: '5-Minute Test Timer successfully reset!', scheduler });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

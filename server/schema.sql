@@ -47,8 +47,16 @@ CREATE TABLE IF NOT EXISTS tbl_Store (
 INSERT IGNORE INTO tbl_Store 
 (int_Store_Id, txt_Store_Code, txt_Store_Name, txt_Campus, txt_Incharge, txt_Email, txt_Phone, txt_Username, txt_Password, txt_Active, dte_Created_Date, txt_Created_By)
 VALUES 
-(1, 'STR-001', 'Boys Hostel Main Store', 'North Campus', 'Rajesh Kumar', 'store1@hostel.edu', '9876543210', 'str-001', 'storepassword', 'Y', CURDATE(), 'System'),
-(2, 'STR-002', 'Girls Hostel Store', 'South Campus', 'Priya Sharma', 'store2@hostel.edu', '9876543211', 'str-002', 'storepassword', 'Y', CURDATE(), 'System');
+(1, 'STR-2026-001', 'Boys Hostel Store', 'Boys Hostel', 'John', 'store001@hostel.edu', '9876543210', 'str-2026-001', 'storepassword', 'Y', CURDATE(), 'System'),
+(2, 'STR-2026-002', 'Girls Hostel Store', 'Girls Hostel', 'Alice', 'store002@hostel.edu', '9876543211', 'str-2026-002', 'storepassword', 'Y', CURDATE(), 'System'),
+(3, 'STR-2026-003', 'Subash Hostel Store', 'West Campus - Block A', 'David Raj', 'store003@hostel.edu', '9876543212', 'str-2026-003', 'storepassword', 'Y', CURDATE(), 'System'),
+(4, 'STR-2026-004', 'Bharathi Hostel Store', 'East Campus - Block B', 'Saravanan M', 'store004@hostel.edu', '9876543213', 'str-2026-004', 'storepassword', 'Y', CURDATE(), 'System'),
+(5, 'STR-2026-005', 'Vivekanandar Hostel Store', 'Main Campus - Block C', 'Anitha K', 'store005@hostel.edu', '9876543214', 'str-2026-005', 'storepassword', 'Y', CURDATE(), 'System'),
+(6, 'STR-2026-006', 'Kalam Hostel Store', 'Science Block Campus', 'Vigneshwaran R', 'store006@hostel.edu', '9876543215', 'str-2026-006', 'storepassword', 'Y', CURDATE(), 'System'),
+(7, 'STR-2026-007', 'Ramanujan Hostel Store', 'Engineering Wing Campus', 'Meenakshi S', 'store007@hostel.edu', '9876543216', 'str-2026-007', 'storepassword', 'Y', CURDATE(), 'System'),
+(8, 'STR-2026-008', 'Mother Teresa Hostel Store', 'Ladies Hostel Block 2', 'Soundarya P', 'store008@hostel.edu', '9876543217', 'str-2026-008', 'storepassword', 'Y', CURDATE(), 'System'),
+(9, 'STR-2026-009', 'PG & Research Scholars Store', 'PG Block Campus', 'Murugan T', 'store009@hostel.edu', '9876543218', 'str-2026-009', 'storepassword', 'Y', CURDATE(), 'System'),
+(10, 'STR-2026-010', 'International Students Store', 'Global Block Campus', 'Radhika N', 'store010@hostel.edu', '9876543219', 'str-2026-010', 'storepassword', 'Y', CURDATE(), 'System');
 
 
 -- 3. Supplier Table
@@ -103,9 +111,16 @@ CREATE TABLE IF NOT EXISTS tbl_Category (
 INSERT IGNORE INTO tbl_Category
 (int_Category_Id, txt_Category_Code, txt_Category_Name, txt_Description, txt_status, dte_Created_Date, txt_Created_By)
 VALUES
-(1, 'CAT-001', 'Cleaning Supplies', 'Detergents, brooms, disinfectants and cleaning tools', 'Active', CURDATE(), 'System'),
-(2, 'CAT-002', 'Electrical Items', 'Bulbs, switches, wires and extension boards', 'Active', CURDATE(), 'System'),
-(3, 'CAT-003', 'Furniture & Fittings', 'Chairs, tables, mattresses and bedframes', 'Active', CURDATE(), 'System');
+(1, 'CAT-2026-001', 'Room & Furniture', 'Chairs, tables, mattresses and bedframes', 'Active', CURDATE(), 'System'),
+(2, 'CAT-2026-003', 'Bathroom Supplies', 'Detergents, brooms, disinfectants and cleaning tools', 'Active', CURDATE(), 'System'),
+(3, 'CAT-2026-004', 'Kitchen & Dining', 'Groceries, oils, rice, cooking utensils and dining tools', 'Active', CURDATE(), 'System'),
+(4, 'CAT-2026-005', 'Stationery & Office', 'Registers, pens, papers and office supplies', 'Active', CURDATE(), 'System'),
+(5, 'CAT-2026-006', 'Electricals', 'Bulbs, switches, wires and extension boards', 'Active', CURDATE(), 'System'),
+(6, 'CAT-2026-007', 'Medical & First Aid', 'Emergency medicines, band-aids, antiseptics, and health kits', 'Active', CURDATE(), 'System'),
+(7, 'CAT-2026-008', 'Sports & Recreation', 'Badminton racquets, volleyballs, carrom boards, and sports gear', 'Active', CURDATE(), 'System'),
+(8, 'CAT-2026-009', 'Plumbing & Hardware', 'Water pipes, taps, valves, sealant tapes, and plumbing fittings', 'Active', CURDATE(), 'System'),
+(9, 'CAT-2026-010', 'Laundry & Linen', 'Washing powder, bedsheets, pillow covers, and towels', 'Active', CURDATE(), 'System'),
+(10, 'CAT-2026-011', 'Safety & Security', 'Fire extinguishers, padlocks, CCTV cables, and security gear', 'Active', CURDATE(), 'System');
 
 
 -- 5. Item Table
@@ -130,9 +145,16 @@ CREATE TABLE IF NOT EXISTS tbl_Item (
 INSERT IGNORE INTO tbl_Item
 (int_Item_Id, txt_Item_Code, txt_Item_Name, int_Category_Id, txt_Unit, int_Min_Stock, int_Current_Stock, dbl_Unit_Price, txt_Status, dte_Created_Date, txt_Created_By)
 VALUES
-(1, 'ITM-001', 'Floor Cleaner 5L', 1, 'Cans', 5, 25, 450.00, 'Active', CURDATE(), 'System'),
-(2, 'ITM-002', 'LED Tube Light 20W', 2, 'Pcs', 20, 50, 220.00, 'Active', CURDATE(), 'System'),
-(3, 'ITM-003', 'Study Desk Chair', 3, 'Pcs', 10, 0, 1500.00, 'Active', CURDATE(), 'System');
+(1, 'ITM-2026-001', 'Basmati Rice 25kg Bag', 3, 'Kg', 10, 250, 85.00, 'Active', CURDATE(), 'System'),
+(2, 'ITM-2026-002', 'Cooking Oil', 3, 'Litre', 10, 100, 150.00, 'Active', CURDATE(), 'System'),
+(3, 'ITM-2026-003', 'Mattress', 1, 'Nos', 10, 5, 3500.00, 'Active', CURDATE(), 'System'),
+(4, 'ITM-2026-004', 'Floor Cleaner', 2, 'Litre', 10, 50, 180.00, 'Active', CURDATE(), 'System'),
+(5, 'ITM-2026-005', 'Wire', 5, 'Rolls', 10, 10, 50.00, 'Active', CURDATE(), 'System'),
+(6, 'ITM-2026-006', 'First Aid Kit Complete', 6, 'Set', 5, 15, 650.00, 'Active', CURDATE(), 'System'),
+(7, 'ITM-2026-007', 'Volleyball Tournament Leather', 7, 'Nos', 5, 8, 950.00, 'Active', CURDATE(), 'System'),
+(8, 'ITM-2026-008', 'Brass Tap 1/2 Inch', 8, 'Pcs', 10, 30, 240.00, 'Active', CURDATE(), 'System'),
+(9, 'ITM-2026-009', 'Cotton Bedsheet Double', 9, 'Pcs', 15, 45, 480.00, 'Active', CURDATE(), 'System'),
+(10, 'ITM-2026-010', 'Heavy Duty Brass Padlock 50mm', 10, 'Pcs', 10, 25, 320.00, 'Active', CURDATE(), 'System');
 
 
 -- 6. Store Stock (Per-store stock levels)

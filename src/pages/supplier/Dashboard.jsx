@@ -38,8 +38,9 @@ export const SupplierDashboard = ({ setCurrentTab }) => {
     const periodMap = new Map();
 
     (requests || []).forEach(r => {
-      if (!r) return;
-      const isOpen = r.txt_Status === 'Open for Quotation' || r.txt_Status === 'Approved' || r.txt_Status === 'Pending' || r.txt_Status === 'Open';
+      const statusLower = (r.txt_Status || '').toLowerCase();
+      const isPending = statusLower.includes('pending');
+      const isOpen = !isPending && (r.txt_Status === 'Open for Quotation' || r.txt_Status === 'Approved' || r.txt_Status === 'Quotation Requested' || r.txt_Status === 'Open');
       const alreadyBidded = mySubmittedReqIds.has(Number(r.int_Request_Id));
 
       if (isOpen && !alreadyBidded) {
