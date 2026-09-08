@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { apiService } from '../../services/api';
 import { Modal } from '../../components/common/Modal';
+import { NumberInput } from '../../components/common/NumberInput';
 import { Plus, Trash2, Send, Calculator, ShoppingBag, Lock, Unlock, Clock, AlertTriangle, Search, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generateRequestCode } from '../../utils/codeGenerator';
 import { matchesWordPrefix } from '../../utils/searchUtils';
@@ -334,12 +335,11 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
 
               <div className="form-group">
                 <label className="form-label">Year</label>
-                <input
-                  type="number"
-                  className="form-control"
+                <NumberInput
+                  step={1}
                   disabled
                   value={year}
-                  style={{ backgroundColor: 'var(--color-surface-hover)', fontWeight: 600 }}
+                  onChange={() => {}}
                 />
               </div>
 
@@ -476,20 +476,19 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
                           {/* Editable Quantity to Request Column */}
                           <td style={{ background: 'var(--color-primary-light)' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <input
-                                type="number"
-                                min="1"
-                                className="form-control"
-                                style={{ 
-                                  width: '110px', 
+                              <NumberInput
+                                min={1}
+                                step={1}
+                                required
+                                style={{ width: '130px' }}
+                                inputStyle={{
                                   fontWeight: 800, 
                                   fontSize: '0.95rem',
                                   color: 'var(--color-primary)', 
                                   border: '2px solid var(--color-primary)' 
                                 }}
-                                required
                                 value={row.dec_Required_Qty}
-                                onChange={e => handleRowChange(idx, 'dec_Required_Qty', e.target.value)}
+                                onChange={val => handleRowChange(idx, 'dec_Required_Qty', val)}
                               />
                             </div>
                           </td>
@@ -677,14 +676,14 @@ export const StoreRaiseRequirement = ({ setCurrentTab }) => {
                             </span>
                           </td>
                           <td>
-                            <input
-                              type="number"
-                              min="1"
+                            <NumberInput
+                              min={1}
+                              step={1}
                               disabled={alreadyAdded}
-                              className="form-control"
-                              style={{ width: '85px', padding: '4px 8px', fontWeight: 700 }}
+                              style={{ width: '110px' }}
+                              inputStyle={{ fontWeight: 700 }}
                               value={currentModalQty}
-                              onChange={e => handleModalQtyChange(item.int_Item_Id, e.target.value)}
+                              onChange={val => handleModalQtyChange(item.int_Item_Id, val)}
                             />
                           </td>
                           <td>₹{Number(item.dec_Last_Purchase_Price || 0).toFixed(2)}</td>

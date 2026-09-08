@@ -5,6 +5,7 @@ import { apiService } from '../../services/api';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { NumberInput } from '../../components/common/NumberInput';
 import { Truck, Edit, Trash2, Star } from 'lucide-react';
 import { generateSupplierCode } from '../../utils/codeGenerator';
 
@@ -237,15 +238,13 @@ export const AdminSuppliers = () => {
             </div>
             <div className="form-group">
               <label className="form-label">Rating (0 = Unrated)</label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                max="5"
-                className="form-control"
+              <NumberInput
+                step={0.5}
+                min={0}
+                max={5}
                 placeholder="0 (Unrated)"
                 value={formData.dbl_Rating || 0}
-                onChange={e => setFormData({ ...formData, dbl_Rating: Number(e.target.value) })}
+                onChange={val => setFormData({ ...formData, dbl_Rating: Number(val) })}
               />
             </div>
           </div>

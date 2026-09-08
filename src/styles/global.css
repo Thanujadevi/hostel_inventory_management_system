@@ -168,6 +168,77 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
+/* Disable native spin buttons on type=number */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+input[type=number] {
+  -moz-appearance: textfield !important;
+}
+
+/* Custom Stepper / Number Input Styles */
+.number-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.number-input-wrapper .number-input-field {
+  padding-left: 32px !important;
+  padding-right: 32px !important;
+  text-align: center;
+  font-weight: 600;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.number-input-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-hover, #f1f5f9);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.number-input-btn:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 5px rgba(2, 132, 199, 0.25);
+}
+
+.number-input-btn:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.number-input-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background-color: transparent;
+}
+
+.number-input-btn.decrement {
+  left: 6px;
+}
+
+.number-input-btn.increment {
+  right: 6px;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
