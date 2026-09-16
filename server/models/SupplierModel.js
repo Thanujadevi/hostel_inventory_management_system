@@ -12,7 +12,12 @@ export const SupplierModel = {
   },
 
   async findByPhone(phone) {
-    const [rows] = await pool.query('SELECT *, txt_Supplier_Name AS txt_Store_Name, txt_Contact_Person AS txt_Owner_Name FROM tbl_Supplier WHERE txt_Phone = ?', [phone]);
+    const cleanPhone = (phone || '').trim().replace(/\D/g, '').slice(-10);
+    const [rows] = await pool.query(
+      `SELECT *, txt_Supplier_Name AS txt_Store_Name, txt_Contact_Person AS txt_Owner_Name FROM tbl_Supplier 
+       WHERE txt_Phone = ? OR RIGHT(REGEXP_REPLACE(txt_Phone, '[^0-9]', ''), 10) = ?`,
+      [phone, cleanPhone]
+    );
     return rows[0] || null;
   },
 

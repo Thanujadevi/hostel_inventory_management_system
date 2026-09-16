@@ -5,9 +5,18 @@ import { Modal } from '../../components/common/Modal';
 import { ThemeToggle } from '../../components/common/ThemeToggle';
 import { useData } from '../../context/DataContext';
 import campusBg from '../../assets/campus.jpg';
+import { auth as firebaseAuth } from '../../firebase';
+import { RecaptchaVerifier } from 'firebase/auth';
 
 export const Login = () => {
-  const { loginWithCredentials, loginWithGoogleAdmin, sendSupplierOtp, loginSupplierWithOtp } = useAuth();
+  const { 
+    loginWithCredentials, 
+    loginWithGoogleAdmin, 
+    sendSupplierOtp, 
+    loginSupplierWithOtp,
+    sendFirebaseOtp,
+    verifyFirebaseOtpAndLogin
+  } = useAuth();
   const { mockApi, showToast, refreshAll } = useData();
 
   // Single unified input state
@@ -18,6 +27,9 @@ export const Login = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [inputOtp, setInputOtp] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [error, setError] = useState(null);
 
   // Google OAuth State
@@ -27,6 +39,45 @@ export const Login = () => {
   // Input Focus Ref
   const primaryInputRef = useRef(null);
   const otpInputRef = useRef(null);
+
+  // Countdown timer for Resend OTP button
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // Setup Firebase RecaptchaVerifier
+  const setupRecaptcha = () => {
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear();
+      } catch (e) {}
+      window.recaptchaVerifier = null;
+    }
+    const container = document.getElementById('recaptcha-container');
+    if (!container) return null;
+
+    try {
+      window.recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+        'size': 'invisible',
+        'callback': (response) => {
+          // reCAPTCHA solved
+        },
+        'expired-callback': () => {
+          setError("reCAPTCHA expired. Please try sending OTP again.");
+        }
+      });
+      return window.recaptchaVerifier;
+    } catch (e) {
+      console.warn("RecaptchaVerifier setup warning:", e);
+      return null;
+    }
+  };
 
   const parseJwt = (token) => {
     try {
@@ -97,7 +148,6 @@ export const Login = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Main Google button click handler (triggers Google popup or opens fallback email modal)
   const handleDirectGoogleLogin = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setError(null);
@@ -155,7 +205,6 @@ export const Login = () => {
     }
   };
 
-  // Submission handler for the Google Admin Email modal
   const handleGoogleModalSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setError(null);
@@ -203,7 +252,109 @@ export const Login = () => {
       setOtpSent(false);
       setInputOtp('');
       setGeneratedOtp('');
+      setConfirmationResult(null);
     }
+  };
+
+  const handleSendOtp = async (phoneVal) => {
+    setError(null);
+    setLoading(true);
+    const targetPhone = phoneVal || loginInput;
+
+    // 1. Try Firebase Phone Auth first
+    try {
+      const verifier = setupRecaptcha();
+      const res = await sendFirebaseOtp(targetPhone, verifier);
+
+      if (res.success) {
+        setConfirmationResult(res.confirmationResult);
+        setOtpSent(true);
+        showToast(res.message || `Firebase OTP sent to ${res.formattedPhone}`, "success");
+        setResendCooldown(30);
+        return;
+      }
+      console.warn("Firebase Phone Auth notice, using Real Backend SMS Gateway (Fast2SMS):", res.message);
+    } catch (err) {
+      console.warn("Firebase Phone Auth error, using Real Backend SMS Gateway (Fast2SMS):", err);
+    }
+
+    // 2. Fallback to Real Backend SMS Gateway (Fast2SMS / Twilio)
+    try {
+      const fallbackRes = await sendSupplierOtp(targetPhone);
+      if (fallbackRes.success) {
+        setOtpSent(true);
+        setGeneratedOtp(fallbackRes.otp || '');
+        showToast(fallbackRes.message || "Real SMS OTP dispatched to your mobile phone!", "success");
+        setResendCooldown(30);
+      } else {
+        setError(fallbackRes.message || "Unable to send SMS. Please ensure mobile number is registered.");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to dispatch SMS OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUseFallbackOtp = async () => {
+    setError(null);
+    setLoading(true);
+    const targetPhone = loginInput;
+    try {
+      const fallbackRes = await sendSupplierOtp(targetPhone);
+      if (fallbackRes.success) {
+        setOtpSent(true);
+        setGeneratedOtp(fallbackRes.otp);
+        showToast("Demo OTP generated successfully", "info");
+        setResendCooldown(30);
+      } else {
+        setError(fallbackRes.message || "Unable to send OTP. Please ensure mobile number is registered.");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to generate fallback OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setError(null);
+    setLoading(true);
+
+    const cleanPhone = (loginInput || '').trim().replace(/^(\+91|91|0)/, '').replace(/\D/g, '');
+
+    try {
+      if (confirmationResult) {
+        // Firebase Auth Verification & Server ID Token Verification
+        const result = await verifyFirebaseOtpAndLogin(confirmationResult, inputOtp, cleanPhone);
+        if (!result.success) {
+          setError(result.message);
+        }
+      } else {
+        // Fallback Verification
+        const result = await loginSupplierWithOtp(loginInput, inputOtp, generatedOtp);
+        if (!result.success) {
+          setError(result.message);
+        }
+      }
+    } catch (err) {
+      setError(err.message || "Verification failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || loading) return;
+    setInputOtp('');
+    await handleSendOtp(loginInput);
+  };
+
+  const handleChangeNumber = () => {
+    setOtpSent(false);
+    setInputOtp('');
+    setConfirmationResult(null);
+    setError(null);
   };
 
   const handleFormSubmit = async (e) => {
@@ -212,26 +363,19 @@ export const Login = () => {
 
     if (isMobile) {
       if (!otpSent) {
-        // Step 1: Send OTP
-        const result = await sendSupplierOtp(loginInput);
-        if (result.success) {
-          setOtpSent(true);
-          setGeneratedOtp(result.otp);
-          showToast(result.message || `OTP sent successfully`, "info");
-        } else {
-          setError(result.message);
-        }
+        await handleSendOtp(loginInput);
       } else {
-        // Step 2: Verify OTP
-        const result = await loginSupplierWithOtp(loginInput, inputOtp, generatedOtp);
+        await handleVerifyOtp();
+      }
+    } else {
+      setLoading(true);
+      try {
+        const result = await loginWithCredentials(loginInput, password);
         if (!result.success) {
           setError(result.message);
         }
-      }
-    } else {
-      const result = await loginWithCredentials(loginInput, password);
-      if (!result.success) {
-        setError(result.message);
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -265,18 +409,11 @@ export const Login = () => {
         txt_Profile_Completed: 'N'
       });
       await refreshAll();
-      showToast("Registration successful! OTP sent for login.", "success");
+      showToast("Registration successful! Requesting OTP...", "success");
       setIsRegisterOpen(false);
 
-      // Auto pre-fill registered phone number into single input and send OTP
       setLoginInput(cleanedPhone);
-
-      const res = await sendSupplierOtp(cleanedPhone);
-      if (res.success) {
-        setOtpSent(true);
-        setGeneratedOtp(res.otp);
-        showToast(res.message || `OTP sent successfully`, "info");
-      }
+      await handleSendOtp(cleanedPhone);
 
       setRegData({
         txt_Store_Name: '',
@@ -337,6 +474,27 @@ export const Login = () => {
             boxShadow: '0 2px 8px rgba(239, 68, 68, 0.15)'
           }}>
             <div>{error}</div>
+            {error.includes('Firebase') && (
+              <div style={{ marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={handleUseFallbackOtp}
+                  style={{
+                    backgroundColor: '#059669',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '7px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)'
+                  }}
+                >
+                  ⚡ Click Here to Login via Offline Demo OTP
+                </button>
+              </div>
+            )}
             {error.includes('not registered') && (
               <button
                 type="button"
@@ -364,99 +522,120 @@ export const Login = () => {
           </div>
         )}
 
-        {/* OTP Status Banner */}
-        {/* Simulated OTP Banner */}
-        {otpSent && (
-          <div style={{
-            backgroundColor: 'var(--color-primary-bg, #eff6ff)',
-            color: 'var(--color-primary-text, #1e40af)',
-            padding: '12px 14px',
-            borderRadius: '12px',
-            marginBottom: '18px',
-            fontSize: '0.85rem',
-            border: '1px solid var(--color-primary-border, #bfdbfe)',
-            boxShadow: '0 2px 10px rgba(37, 99, 235, 0.12)'
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: '2px' }}>
-              OTP sent to +91 {loginInput}
-            </div>
-            <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>
-              Demo OTP: <strong style={{ fontSize: '1rem', letterSpacing: '2px', textDecoration: 'underline' }}>{generatedOtp}</strong> (or use 1234)
-            </div>
-          </div>
-        )}
+        {/* Firebase Invisible Recaptcha Container */}
+        <div id="recaptcha-container"></div>
 
         <form onSubmit={handleFormSubmit}>
-          {/* Primary Input (Auto-detects Mobile No vs Staff Username) */}
-          <div className="form-group" style={{ marginBottom: '18px' }}>
-            <div style={{ marginBottom: '6px' }}>
-              <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem', margin: 0 }}>
-                Username or Supplier Mobile Number
-              </label>
-            </div>
-
-            <div className="login-input-wrapper">
-              <span className="login-input-icon">
-                {isMobile ? (
-                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                )}
-              </span>
-              <input
-                ref={primaryInputRef}
-                type="text"
-                className="login-input"
-                placeholder="Enter Username (Admin/Store) or Mobile No."
-                required
-                disabled={otpSent}
-                value={loginInput}
-                onChange={handleInputChange}
-              />
-            </div>
-            
-            {/* Quick Demo Supplier Number Shortcuts */}
-            {isMobile && !otpSent && (
-              <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                Demo Suppliers: {' '}
-                <button
-                  type="button"
-                  onClick={() => { setLoginInput('9988776655'); setError(null); }}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: '0 4px' }}
-                >
-                  9988776655
-                </button> | {' '}
-                <button
-                  type="button"
-                  onClick={() => { setLoginInput('9876501234'); setError(null); }}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: '0 4px' }}
-                >
-                  9876501234
-                </button>
+          {/* Step 1: Mobile Number Input / Username Input */}
+          {!otpSent && (
+            <div className="form-group" style={{ marginBottom: '18px' }}>
+              <div style={{ marginBottom: '6px' }}>
+                <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem', margin: 0 }}>
+                  {isMobile ? 'Mobile Number' : 'Username or Supplier Mobile Number'}
+                </label>
               </div>
-            )}
-          </div>
 
-          {/* Conditional Field 1: OTP Input for Supplier Mobile Flow */}
+              {isMobile ? (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{
+                    padding: '11px 14px',
+                    backgroundColor: 'var(--color-bg-secondary, #f1f5f9)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    color: 'var(--color-text-primary)'
+                  }}>
+                    +91
+                  </span>
+                  <div className="login-input-wrapper" style={{ flex: 1 }}>
+                    <span className="login-input-icon">
+                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </span>
+                    <input
+                      ref={primaryInputRef}
+                      type="tel"
+                      className="login-input"
+                      placeholder="Enter 10-digit Mobile Number"
+                      required
+                      maxLength={10}
+                      value={loginInput}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="login-input-wrapper">
+                  <span className="login-input-icon">
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </span>
+                  <input
+                    ref={primaryInputRef}
+                    type="text"
+                    className="login-input"
+                    placeholder="Enter Username (Admin/Store) or Mobile No."
+                    required
+                    value={loginInput}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              )}
+              
+              {/* Registered Demo Supplier Mobile Shortcuts */}
+              {isMobile && !otpSent && (
+                <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                  Registered Suppliers: {' '}
+                  <button
+                    type="button"
+                    onClick={() => { setLoginInput('9988776655'); setError(null); }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: '0 4px' }}
+                  >
+                    9988776655
+                  </button> | {' '}
+                  <button
+                    type="button"
+                    onClick={() => { setLoginInput('9876501234'); setError(null); }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: '0 4px' }}
+                  >
+                    9876501234
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: OTP Verification UI (After OTP is Sent) */}
           {isMobile && otpSent && (
             <div className="form-group" style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem', margin: 0 }}>
+              <div style={{
+                backgroundColor: 'var(--color-primary-bg, #eff6ff)',
+                color: 'var(--color-primary-text, #1e40af)',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                marginBottom: '16px',
+                fontSize: '0.85rem',
+                border: '1px solid var(--color-primary-border, #bfdbfe)'
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: '2px' }}>
+                  OTP sent to +91 {loginInput.slice(-10)}
+                </div>
+                {generatedOtp && (
+                  <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>
+                    Demo OTP: <strong style={{ fontSize: '1rem', letterSpacing: '2px', textDecoration: 'underline' }}>{generatedOtp}</strong> (or use 1234)
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '8px' }}>
+                <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.875rem' }}>
                   Enter 6-Digit OTP
                 </label>
-                <button
-                  type="button"
-                  onClick={() => { setOtpSent(false); setInputOtp(''); }}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
-                >
-                  Change Number
-                </button>
               </div>
-              <div className="login-input-wrapper">
+              <div className="login-input-wrapper" style={{ marginBottom: '14px' }}>
                 <span className="login-input-icon">
                   <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -466,22 +645,56 @@ export const Login = () => {
                   ref={otpInputRef}
                   type="text"
                   className="login-input"
-                  placeholder="e.g. 123456"
+                  placeholder="_ _ _ _ _ _"
                   required
                   maxLength={6}
                   style={{
-                    letterSpacing: '4px',
+                    letterSpacing: '6px',
                     fontWeight: 700,
-                    fontSize: '1.05rem'
+                    fontSize: '1.15rem',
+                    textAlign: 'center'
                   }}
                   value={inputOtp}
-                  onChange={e => setInputOtp(e.target.value)}
+                  onChange={e => setInputOtp(e.target.value.replace(/\D/g, ''))}
                 />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem' }}>
+                <button
+                  type="button"
+                  disabled={resendCooldown > 0 || loading}
+                  onClick={handleResendOtp}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: resendCooldown > 0 ? 'var(--color-text-muted, #94a3b8)' : 'var(--color-primary)',
+                    cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
+                    fontWeight: 600,
+                    textDecoration: resendCooldown > 0 ? 'none' : 'underline'
+                  }}
+                >
+                  {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleChangeNumber}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-primary)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Change Mobile Number
+                </button>
               </div>
             </div>
           )}
 
-          {/* Conditional Field 2: Password Input (For Staff Username Only) */}
+          {/* Conditional Password Input (For Staff Username Only) */}
           {!isMobile && (
             <div className="form-group" style={{ marginBottom: '22px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -511,13 +724,16 @@ export const Login = () => {
           <button
             type="submit"
             className="login-btn-primary"
+            disabled={loading}
           >
-            {isMobile ? (
+            {loading ? (
+              <span>Processing...</span>
+            ) : isMobile ? (
               <>
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                {otpSent ? 'Verify OTP & Login' : 'Get OTP via Mobile'}
+                {otpSent ? 'Verify OTP' : 'Send OTP'}
               </>
             ) : (
               <>
