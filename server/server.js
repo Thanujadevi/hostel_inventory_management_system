@@ -80,6 +80,7 @@ app.get('/api/health', async (req, res) => {
 // Start Server & 24-hour Reminder Scheduler
 app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📱 Fast2SMS Key Loaded: ${process.env.FAST2SMS_API_KEY ? 'YES (Key Active)' : 'NO (Missing)'}`);
   try {
     await pool.query("UPDATE tbl_Supplier SET dbl_Rating = 0.00 WHERE dbl_Rating >= 4.5 OR dbl_Rating IS NULL");
     console.log("✅ Supplier ratings initialized to 0.00 (Unrated) for unreviewed suppliers");

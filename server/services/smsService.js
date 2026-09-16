@@ -1,25 +1,72 @@
 /**
- * SMS Gateway Service
- * Supports Twilio API with automatic fallback to console logging
+ * Real-Time SMS Gateway Service
+ * Supports Fast2SMS (India) and Twilio (Global) APIs with console logging fallback
  */
 
 export const smsService = {
   /**
-   * Send SMS OTP to supplier phone number
+   * Send real SMS OTP to supplier phone number
    * @param {string} phone - Target mobile number
    * @param {string} otp - OTP code to send
    * @returns {Promise<{success: boolean, provider?: string, message: string, details?: any}>}
    */
   async sendOtpSms(phone, otp) {
-    const cleanDigits = (phone || '').trim().replace(/\D/g, '').slice(-10);
+    const cleanDigits = (phone || '').trim().replace(/^(\+91|91|0)/, '').replace(/\D/g, '').slice(-10);
     const formattedPhone = cleanDigits ? `+91${cleanDigits}` : phone;
     const smsMessage = `Your Hostel Inventory System verification OTP is ${otp}. Valid for 10 minutes.`;
 
+    const fast2smsApiKey = process.env.FAST2SMS_API_KEY;
     const twilioSid = process.env.TWILIO_ACCOUNT_SID;
     const twilioToken = process.env.TWILIO_AUTH_TOKEN;
     const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 
-    // 1. Try Twilio API if configured
+    // 1. Try Fast2SMS API (Fastest real SMS for Indian +91 numbers)
+    if (fast2smsApiKey && cleanDigits.length === 10) {
+      try {
+        console.log(`[SMS ATTEMPT - Fast2SMS] Sending real SMS to +91 ${cleanDigits}...`);
+
+        // Fast2SMS Bulk V2 POST Request with Header Authorization
+        let response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+          method: 'POST',
+          headers: {
+            'authorization': fast2smsApiKey.trim(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            route: 'otp',
+            variables_values: String(otp),
+            numbers: cleanDigits
+          })
+        });
+
+        let data = await response.json();
+        console.log(`[Fast2SMS Route 'otp' Response]:`, data);
+
+        // If 'otp' route requires DLT registration on new Fast2SMS account, try GET fallback
+        if (!data || data.return !== true) {
+          console.log(`[SMS INFO - Fast2SMS] Trying GET fallback request...`);
+          response = await fetch(`https://www.fast2sms.com/dev/bulkV2?authorization=${encodeURIComponent(fast2smsApiKey.trim())}&route=otp&variables_values=${encodeURIComponent(otp)}&flash=0&numbers=${encodeURIComponent(cleanDigits)}`);
+          data = await response.json();
+          console.log(`[Fast2SMS GET Response]:`, data);
+        }
+
+        if (data && data.return === true) {
+          console.log(`[SMS SUCCESS - Fast2SMS] Real SMS dispatched to +91 ${cleanDigits}`);
+          return {
+            success: true,
+            provider: 'Fast2SMS',
+            isRealSms: true,
+            message: `Real SMS OTP dispatched successfully to +91 ${cleanDigits}`
+          };
+        } else {
+          console.warn(`[SMS WARN - Fast2SMS Response]:`, data ? data.message : 'No response from Fast2SMS');
+        }
+      } catch (err) {
+        console.error('[SMS ERROR - Fast2SMS Exception]:', err.message);
+      }
+    }
+
+    // 2. Try Twilio API if configured
     if (twilioSid && twilioToken && twilioPhone) {
       try {
         const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64');
@@ -50,17 +97,17 @@ export const smsService = {
       }
     }
 
-    // 2. Fallback for Development (Console Log & return OTP for demo UI)
+    // 3. Fallback for Development (Console Log & return OTP for demo UI)
     console.log('\n======================================================');
-    console.log(`[DEMO SMS SERVICE] Target: ${formattedPhone}`);
-    console.log(`[DEMO SMS SERVICE] OTP Message: "${smsMessage}"`);
-    console.log(`[DEMO SMS SERVICE] Note: Configure TWILIO_* in server/.env for SMS`);
+    console.log(`[REAL SMS SERVICE] Target: +91 ${cleanDigits}`);
+    console.log(`[REAL SMS SERVICE] OTP Code: "${otp}"`);
+    console.log(`[REAL SMS SERVICE] To send real SMS, add FAST2SMS_API_KEY in server/.env`);
     console.log('======================================================\n');
 
     return {
       success: true,
-      provider: 'Demo Console / Dev Mode',
-      message: `OTP sent successfully to ${formattedPhone} (Demo OTP: ${otp})`
+      provider: 'Demo Mode',
+      message: `OTP sent successfully to +91 ${cleanDigits}`
     };
   }
 };

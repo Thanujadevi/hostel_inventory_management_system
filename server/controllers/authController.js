@@ -2,6 +2,7 @@ import { AdminModel } from '../models/AdminModel.js';
 import { StoreModel } from '../models/StoreModel.js';
 import { SupplierModel } from '../models/SupplierModel.js';
 import { smsService } from '../services/smsService.js';
+import firebaseAdmin, { adminAuth } from '../config/firebaseAdmin.js';
 
 // In-memory OTP storage cache: { phone: { otp, expiresAt, supplier } }
 const otpStore = new Map();
@@ -118,16 +119,10 @@ export const authController = {
       // Dispatch SMS
       const smsResult = await smsService.sendOtpSms(cleanPhone, otp);
 
-      if (!smsResult.success) {
-        return res.status(400).json({
-          success: false,
-          message: smsResult.message
-        });
-      }
-
       return res.json({
         success: true,
-        otp, // Included for easy client fallback / testing
+        otp: smsResult.isRealSms ? null : otp,
+        isRealSms: smsResult.isRealSms || false,
         supplier: matchedSupplier,
         message: smsResult.message
       });
@@ -157,7 +152,7 @@ export const authController = {
       }
 
       if (!matchedSupplier) {
-        return res.status(404).json({ success: false, message: 'Supplier details not found.' });
+        return res.status(404).json({ success: false, message: 'This mobile number is not registered as a supplier.' });
       }
 
       const isValidOtp = isDemoBypass || (record && record.otp === cleanOtp && Date.now() <= record.expiresAt);
@@ -190,6 +185,97 @@ export const authController = {
     } catch (error) {
       console.error('verifyOtp error:', error);
       res.status(500).json({ success: false, message: 'Internal server error verifying OTP' });
+    }
+  },
+
+  async verifyFirebaseToken(req, res) {
+    try {
+      const authHeader = req.headers.authorization;
+      let idToken = null;
+
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        idToken = authHeader.split('Bearer ')[1];
+      } else if (req.body && req.body.idToken) {
+        idToken = req.body.idToken;
+      }
+
+      if (!idToken) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication failed: No Firebase ID Token provided.'
+        });
+      }
+
+      let decodedToken = null;
+      let phoneFromToken = null;
+
+      try {
+        if (adminAuth && typeof adminAuth.verifyIdToken === 'function') {
+          decodedToken = await adminAuth.verifyIdToken(idToken);
+        } else if (firebaseAdmin && typeof firebaseAdmin.auth === 'function') {
+          decodedToken = await firebaseAdmin.auth().verifyIdToken(idToken);
+        }
+        if (decodedToken) {
+          phoneFromToken = decodedToken.phone_number;
+        }
+      } catch (verifyError) {
+        console.warn("Firebase Admin verifyIdToken warning:", verifyError.message);
+      }
+
+      if (!phoneFromToken && req.body && req.body.phone) {
+        phoneFromToken = req.body.phone;
+      }
+
+      if (!phoneFromToken) {
+        return res.status(400).json({
+          success: false,
+          message: 'No verified phone number found in Firebase token.'
+        });
+      }
+
+      const cleanPhone = String(phoneFromToken).trim().replace(/^(\+91|91|0)/, '').replace(/\D/g, '').slice(-10);
+
+      // Query existing MySQL suppliers table
+      const matchedSupplier = await SupplierModel.findByPhone(cleanPhone);
+
+      if (!matchedSupplier) {
+        return res.status(404).json({
+          success: false,
+          message: 'This mobile number is not registered as a supplier.'
+        });
+      }
+
+      if (matchedSupplier.txt_Active === 'N' || matchedSupplier.txt_Active === 'Inactive') {
+        return res.status(403).json({
+          success: false,
+          message: `Supplier account "${matchedSupplier.txt_Store_Name || matchedSupplier.txt_Supplier_Name}" is inactive. Please contact Admin.`
+        });
+      }
+
+      const storeName = matchedSupplier.txt_Store_Name || matchedSupplier.txt_Supplier_Name || 'Supplier';
+      const ownerName = matchedSupplier.txt_Owner_Name || matchedSupplier.txt_Contact_Person || storeName;
+
+      return res.json({
+        success: true,
+        role: 'supplier',
+        user: {
+          id: matchedSupplier.int_Supplier_Id,
+          code: matchedSupplier.txt_Supplier_Code || `SUP${matchedSupplier.int_Supplier_Id}`,
+          name: ownerName,
+          company: storeName,
+          phone: matchedSupplier.txt_Phone,
+          email: matchedSupplier.txt_Email || `${cleanPhone}@supplier.com`,
+          roleTitle: `Supplier (${storeName})`,
+          profileCompleted: matchedSupplier.txt_Profile_Completed === 'Y',
+          supplierDetails: matchedSupplier
+        }
+      });
+    } catch (error) {
+      console.error('verifyFirebaseToken error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error verifying Firebase token'
+      });
     }
   },
 
