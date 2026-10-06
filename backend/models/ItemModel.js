@@ -1,0 +1,130 @@
+import pool from '../config/db.js';
+import { getOrGenerateUniqueCode } from '../utils/codeUtils.js';
+
+export const ItemModel = {
+  async getAll() {
+    const [rows] = await pool.query(`
+      SELECT 
+        i.*, 
+        c.txt_Category_Name, 
+        c.txt_Category_Name AS txt_Category,
+        i.txt_Unit AS txt_Unit_Of_Measurement,
+        i.int_Min_Stock AS int_Minimum_Stock_Level,
+        i.int_Current_Stock AS int_quantity_in_hand,
+        i.dbl_Unit_Price AS dec_Last_Purchase_Price
+      FROM tbl_Item i
+      LEFT JOIN tbl_Category c ON i.int_Category_Id = c.int_Category_Id
+      ORDER BY i.int_Item_Id DESC
+    `);
+    return rows;
+  },
+
+  async findById(id) {
+    const [rows] = await pool.query(`
+      SELECT 
+        i.*, 
+        c.txt_Category_Name, 
+        c.txt_Category_Name AS txt_Category,
+        i.txt_Unit AS txt_Unit_Of_Measurement,
+        i.int_Min_Stock AS int_Minimum_Stock_Level,
+        i.int_Current_Stock AS int_quantity_in_hand,
+        i.dbl_Unit_Price AS dec_Last_Purchase_Price
+      FROM tbl_Item i
+      LEFT JOIN tbl_Category c ON i.int_Category_Id = c.int_Category_Id
+      WHERE i.int_Item_Id = ?
+    `, [id]);
+    return rows[0] || null;
+  },
+
+  async create(item) {
+    const itemCode = await getOrGenerateUniqueCode(pool, 'tbl_Item', 'txt_Item_Code', 'ITM', item.txt_Item_Code);
+
+    let categoryId = null;
+    if (item.txt_Category) {
+      const [catRows] = await pool.query('SELECT int_Category_Id FROM tbl_Category WHERE txt_Category_Name = ?', [item.txt_Category]);
+      if (catRows.length > 0) categoryId = catRows[0].int_Category_Id;
+    }
+    if (!categoryId && item.int_Category_Id) {
+      categoryId = item.int_Category_Id;
+    }
+
+    const createdBy = item.txt_Created_By || 'System';
+    const updatedBy = item.txt_Updated_By || createdBy;
+
+    const unitPrice = (item.dec_Last_Purchase_Price !== undefined && item.dec_Last_Purchase_Price !== '') ? Number(item.dec_Last_Purchase_Price) : Number(item.dbl_Unit_Price || 0);
+    const qtyInHand = (item.int_quantity_in_hand !== undefined && item.int_quantity_in_hand !== '') ? Number(item.int_quantity_in_hand) : Number(item.int_Current_Stock || 0);
+    const minStock = (item.int_Minimum_Stock_Level !== undefined && item.int_Minimum_Stock_Level !== '') ? Number(item.int_Minimum_Stock_Level) : Number(item.int_Min_Stock || 10);
+
+    const [result] = await pool.query(
+      `INSERT INTO tbl_Item 
+        (txt_Item_Code, txt_Item_Name, int_Category_Id, txt_Unit, int_Min_Stock, int_Current_Stock, dbl_Unit_Price, txt_Status, dte_Created_Date, txt_Created_By, dte_Updated_Date, txt_Updated_By)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW(), ?)`,
+      [
+        itemCode,
+        item.txt_Item_Name,
+        categoryId || null,
+        item.txt_Unit || item.txt_Unit_Of_Measurement || 'Nos',
+        minStock,
+        qtyInHand,
+        unitPrice,
+        item.txt_Status || 'Active',
+        createdBy,
+        updatedBy
+      ]
+    );
+    return this.findById(result.insertId);
+  },
+
+  async update(id, item) {
+    let categoryId = null;
+    if (item.txt_Category) {
+      const [catRows] = await pool.query('SELECT int_Category_Id FROM tbl_Category WHERE txt_Category_Name = ?', [item.txt_Category]);
+      if (catRows.length > 0) categoryId = catRows[0].int_Category_Id;
+    }
+    if (!categoryId && item.int_Category_Id) {
+      categoryId = item.int_Category_Id;
+    }
+
+    const updatedBy = item.txt_Updated_By || 'System';
+
+    const unitPrice = (item.dec_Last_Purchase_Price !== undefined && item.dec_Last_Purchase_Price !== '') ? Number(item.dec_Last_Purchase_Price) : (item.dbl_Unit_Price !== undefined ? Number(item.dbl_Unit_Price) : null);
+    const qtyInHand = (item.int_quantity_in_hand !== undefined && item.int_quantity_in_hand !== '') ? Number(item.int_quantity_in_hand) : (item.int_Current_Stock !== undefined ? Number(item.int_Current_Stock) : null);
+    const minStock = (item.int_Minimum_Stock_Level !== undefined && item.int_Minimum_Stock_Level !== '') ? Number(item.int_Minimum_Stock_Level) : (item.int_Min_Stock !== undefined ? Number(item.int_Min_Stock) : null);
+
+    await pool.query(
+      `UPDATE tbl_Item SET
+        txt_Item_Code = COALESCE(?, txt_Item_Code),
+        txt_Item_Name = COALESCE(?, txt_Item_Name),
+        int_Category_Id = COALESCE(?, int_Category_Id),
+        txt_Unit = COALESCE(?, txt_Unit),
+        int_Min_Stock = COALESCE(?, int_Min_Stock),
+        int_Current_Stock = COALESCE(?, int_Current_Stock),
+        dbl_Unit_Price = COALESCE(?, dbl_Unit_Price),
+        txt_Status = COALESCE(?, txt_Status),
+        dte_Updated_Date = NOW(),
+        txt_Updated_By = ?
+      WHERE int_Item_Id = ?`,
+      [
+        item.txt_Item_Code || null,
+        item.txt_Item_Name || null,
+        categoryId || null,
+        item.txt_Unit || item.txt_Unit_Of_Measurement || null,
+        minStock,
+        qtyInHand,
+        unitPrice,
+        item.txt_Status || null,
+        updatedBy,
+        id
+      ]
+    );
+    return this.findById(id);
+  },
+
+  async delete(id) {
+    await pool.query('DELETE FROM tbl_Store_Stock WHERE int_Item_Id = ?', [id]);
+    await pool.query('DELETE FROM tbl_Quotation_Item WHERE int_Item_Id = ?', [id]);
+    await pool.query('DELETE FROM tbl_Request_Item WHERE int_Item_Id = ?', [id]);
+    await pool.query('DELETE FROM tbl_Item WHERE int_Item_Id = ?', [id]);
+    return true;
+  }
+};
