@@ -55,7 +55,7 @@ export const AdminDashboard = ({ setCurrentTab }) => {
   // Dashboard banner alert
   const [dashboardAlert, setDashboardAlert] = useState(null);
 
-  const API_BASE = 'http://localhost:5000/api/reminders';
+  const API_BASE = '/api/reminders';
 
   const safeFetchJson = async (url, options) => {
     try {
