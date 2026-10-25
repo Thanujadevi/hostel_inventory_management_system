@@ -18,24 +18,6 @@ import { startReminderScheduler } from './services/reminderScheduler.js';
 
 dotenv.config();
 
-// Auto-copy campus background photo into public folder
-import fs from 'fs';
-import path from 'path';
-try {
-  const campusSrc = "C:\\Users\\Thanuja Devi\\.gemini\\antigravity-ide\\brain\\9beb05f8-bbbf-48de-b96f-3c162cf74827\\media__1787046771305.png";
-  const rootDir = path.resolve(process.cwd(), '..');
-  const targetPublic = path.join(rootDir, 'public', 'campus.png');
-  const targetAssets = path.join(rootDir, 'src', 'assets');
-  
-  if (fs.existsSync(campusSrc)) {
-    fs.copyFileSync(campusSrc, targetPublic);
-    if (!fs.existsSync(targetAssets)) fs.mkdirSync(targetAssets, { recursive: true });
-    fs.copyFileSync(campusSrc, path.join(targetAssets, 'campus.jpg'));
-    console.log('✅ Campus background photo successfully saved to root public/campus.png & src/assets/campus.jpg');
-  }
-} catch (e) {
-  console.error('Campus image sync error:', e.message);
-}
 
 const app = express();
 const PORT = process.env.PORT || 5000;

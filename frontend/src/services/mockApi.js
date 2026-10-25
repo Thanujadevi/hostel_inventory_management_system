@@ -195,7 +195,7 @@ const saveDB = (db) => {
 };
 
 // Express MySQL API Endpoint
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = '/api';
 
 const apiFetch = async (endpoint, options = {}) => {
   try {

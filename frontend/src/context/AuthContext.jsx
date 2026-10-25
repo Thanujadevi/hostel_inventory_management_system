@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
   const loginWithCredentials = async (username, password) => {
     // Try Express backend API first
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -268,7 +268,7 @@ export const AuthProvider = ({ children }) => {
 
     // Try Express backend real SMS OTP endpoint first
     try {
-      const response = await fetch('http://localhost:5000/api/auth/send-otp', {
+      const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: cleanPhone })
@@ -347,7 +347,7 @@ export const AuthProvider = ({ children }) => {
 
     // Try Express backend verify-otp endpoint first
     try {
-      const response = await fetch('http://localhost:5000/api/auth/verify-otp', {
+      const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: cleanPhone, otp: cleanInputOtp })
@@ -480,7 +480,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Send Firebase ID Token to Express Backend (Authorization: Bearer <firebase_id_token>)
-      const response = await fetch('http://localhost:5000/api/auth/verify-firebase-token', {
+      const response = await fetch('/api/auth/verify-firebase-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -528,7 +528,7 @@ export const AuthProvider = ({ children }) => {
 
     // Attempt Backend API verification if running
     try {
-      const response = await fetch('http://localhost:5000/api/auth/google-admin', {
+      const response = await fetch('/api/auth/google-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, picture })
